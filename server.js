@@ -85,7 +85,7 @@ app.post('/api/query', async (req, res) => {
 
     // Validate Databricks configuration
     const missingConfig = [];
-    if (!databricksConfig.serverHostname) missingConfig.push('DATABRICKS_SERVER_HOSTNAME');
+    if (!databricksConfig.serverHostname) missingConfig.push('DATABRICKS_HOST');
     if (!databricksConfig.httpPath) missingConfig.push('DATABRICKS_HTTP_PATH');
     if (!databricksConfig.accessToken) missingConfig.push('DATABRICKS_ACCESS_TOKEN');
     
@@ -117,7 +117,7 @@ app.get('/api/health', (req, res) => {
   };
   
   const missing = [];
-  if (!configStatus.serverHostname) missing.push('DATABRICKS_SERVER_HOSTNAME');
+  if (!configStatus.serverHostname) missing.push('DATABRICKS_HOST');
   if (!configStatus.httpPath) missing.push('DATABRICKS_HTTP_PATH');
   if (!configStatus.accessToken) missing.push('DATABRICKS_ACCESS_TOKEN');
   
@@ -147,7 +147,7 @@ app.listen(PORT, () => {
   if (!databricksConfig.serverHostname || !databricksConfig.httpPath || !databricksConfig.accessToken) {
     console.log('\n⚠️  WARNING: Databricks configuration is incomplete.');
     console.log('   Set environment variables:');
-    console.log('   - DATABRICKS_SERVER_HOSTNAME');
+      console.log('   - DATABRICKS_HOST');
     console.log('   - DATABRICKS_HTTP_PATH');
     console.log('   - DATABRICKS_ACCESS_TOKEN');
   }

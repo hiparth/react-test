@@ -4,7 +4,7 @@ command: ['node', 'server.js']
 # Replace with your actual values or use Option 2 (secrets) for production
 
 # env:
-#   - name: DATABRICKS_SERVER_HOSTNAME
+#   - name: DATABRICKS_HOST
 #     value: 'your-databricks-server-hostname'
 #   - name: DATABRICKS_HTTP_PATH
 #     value: 'your-databricks-http-path'
@@ -16,30 +16,35 @@ command: ['node', 'server.js']
 # Option 2: Use Databricks Secrets (Recommended for production)
 # Uncomment and configure the resources section below, then update env to use valueFrom
 # 
-resources:
-  - name: databricks_server_hostname
-    type: secret
-    properties:
-      scope: sql-app-secrets
-      key: server_hostname
-  - name: databricks_http_path
-    type: secret
-    properties:
-      scope: sql-app-secrets
-      key: http_path
-  - name: databricks_access_token
-    type: secret
-    properties:
-      scope: sql-app-secrets
-      key: access_token
+# Use direct values if secrets aren't configured
 
 env:
   - name: DATABRICKS_HOST
-    valueFrom: databricks_server_hostname
+    value: 'dbc-0425a584-f749.cloud.databricks.com'
   - name: DATABRICKS_HTTP_PATH
-    valueFrom: databricks_http_path
+    value: '/sql/1.0/warehouses/384c984e5512b065'
   - name: DATABRICKS_ACCESS_TOKEN
-    valueFrom: databricks_access_token
+    value: 'dapi53b32a2a4e9f9f66b90fbc357846063d'
   - name: PORT
     value: '3000'
+
+# Uncomment below to use Databricks Secrets instead:
+# resources:
+#   - name: databricks_server_hostname
+#     type: secret
+#     properties:
+#       scope: sql-app-secrets
+#       key: server_hostname
+#   - name: databricks_http_path
+#     type: secret
+#     properties:
+#       scope: sql-app-secrets
+#       key: http_path
+#   - name: databricks_access_token
+#     type: secret
+#     properties:
+#       scope: sql-app-secrets
+#       key: access_token
+# 
+# Then update env to use valueFrom instead of value
 
