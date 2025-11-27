@@ -54,25 +54,42 @@ A simple Node.js web application that allows you to execute SQL queries against 
 
 ## Deployment on Databricks
 
-This application can be deployed on Databricks using various methods:
+**📖 For detailed deployment instructions, see [DEPLOYMENT.md](./DEPLOYMENT.md)**
 
-### Option 1: Databricks Jobs
-1. Package your application:
+### Quick Deploy
+
+1. **Prepare deployment package:**
    ```bash
-   npm install --production
-   tar -czf app.tar.gz .
+   # Linux/Mac
+   ./deploy.sh
+   
+   # Windows
+   .\deploy.ps1
    ```
 
-2. Upload to Databricks and create a job that runs `node server.js`
+2. **Upload to Databricks:**
+   - Upload the generated package or files to your Databricks workspace
+   - Extract files to a folder in your workspace
 
-### Option 2: Databricks Container Services
-Deploy as a containerized application on Databricks infrastructure.
+3. **Configure environment variables in Databricks:**
+   - `DATABRICKS_SERVER_HOSTNAME`
+   - `DATABRICKS_HTTP_PATH`
+   - `DATABRICKS_ACCESS_TOKEN`
 
-### Option 3: Databricks Compute with Web Terminal
-1. Create a Databricks cluster
-2. Upload your application files
-3. Run `npm install` and `npm start` on the cluster
-4. Access via the cluster's web terminal or configure port forwarding
+4. **Install and run:**
+   ```bash
+   npm install
+   node server.js
+   ```
+
+### Deployment Methods
+
+- **Databricks Apps** (Recommended) - Deploy as a custom app in your workspace
+- **Databricks Jobs** - Run as a scheduled or on-demand job
+- **Databricks Compute Cluster** - Run on a cluster with web terminal access
+- **Container Services** - Deploy as a containerized application
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for step-by-step instructions for each method.
 
 ## Important Notes
 

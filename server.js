@@ -12,6 +12,8 @@ app.use(express.json());
 app.use(express.static('public'));
 
 // Databricks connection configuration
+// Configuration can be set via environment variables or Databricks secrets
+// When deployed on Databricks, use the Databricks UI to set environment variables
 const databricksConfig = {
   serverHostname: process.env.DATABRICKS_SERVER_HOSTNAME,
   httpPath: process.env.DATABRICKS_HTTP_PATH,
@@ -84,7 +86,7 @@ app.post('/api/query', async (req, res) => {
     // Validate Databricks configuration
     if (!databricksConfig.serverHostname || !databricksConfig.httpPath || !databricksConfig.accessToken) {
       return res.status(500).json({ 
-        error: 'Databricks configuration is missing. Please check your environment variables.' 
+        error: 'Databricks configuration is missing. Please check your environment variables or Databricks secrets.' 
       });
     }
 
@@ -110,7 +112,8 @@ app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'ok', 
     databricksConfigured: Object.values(configStatus).every(v => v),
-    configStatus 
+    configStatus,
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
@@ -120,10 +123,23 @@ app.get('/', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log('Make sure to set DATABRICKS_SERVER_HOSTNAME, DATABRICKS_HTTP_PATH, and DATABRICKS_ACCESS_TOKEN in your .env file');
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Access the app at: http://localhost:${PORT}`);
+  console.log('\nConfiguration Status:');
+  console.log(`  - Server Hostname: ${databricksConfig.serverHostname ? '✓ Set' : '✗ Missing'}`);
+  console.log(`  - HTTP Path: ${databricksConfig.httpPath ? '✓ Set' : '✗ Missing'}`);
+  console.log(`  - Access Token: ${databricksConfig.accessToken ? '✓ Set' : '✗ Missing'}`);
+  
+  if (!databricksConfig.serverHostname || !databricksConfig.httpPath || !databricksConfig.accessToken) {
+    console.log('\n⚠️  WARNING: Databricks configuration is incomplete.');
+    console.log('   Set environment variables:');
+    console.log('   - DATABRICKS_SERVER_HOSTNAME');
+    console.log('   - DATABRICKS_HTTP_PATH');
+    console.log('   - DATABRICKS_ACCESS_TOKEN');
+  }
+  
   if (!DBSQLClient) {
-    console.warn('WARNING: Databricks SQL client not loaded. Please install @databricks/sql package.');
+    console.warn('\n⚠️  WARNING: Databricks SQL client not loaded. Please install @databricks/sql package.');
   }
 });
 

@@ -1,0 +1,13 @@
+# Databricks App Configuration
+# This file configures how your Node.js app runs on Databricks
+
+command: node server.js
+port: 3000
+
+# Environment variables can be set here or via Databricks secrets
+# For production, use Databricks secrets instead of hardcoding values
+env:
+  PORT: "3000"
+  # Note: Set DATABRICKS_SERVER_HOSTNAME, DATABRICKS_HTTP_PATH, and DATABRICKS_ACCESS_TOKEN
+  # via Databricks secrets or environment variables in the Databricks UI
+
