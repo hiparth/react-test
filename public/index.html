@@ -135,6 +135,28 @@
             transform: translateY(-1px);
         }
 
+        .btn-upload {
+            background: #007bff;
+            color: white;
+            padding: 10px 25px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-upload:hover:not(:disabled) {
+            background: #0056b3;
+            transform: translateY(-1px);
+        }
+
+        .btn-upload:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
         .results-section {
             margin-top: 30px;
         }
@@ -286,6 +308,17 @@
                     </button>
                     <button class="btn-clear" onclick="clearQuery()">Clear</button>
                 </div>
+            </div>
+
+            <div class="upload-section" style="margin-top: 30px; padding: 20px; background: #f9f9f9; border-radius: 8px;">
+                <label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">Upload File to Databricks Volume:</label>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <input type="file" id="fileInput" style="flex: 1; padding: 8px; border: 2px solid #e0e0e0; border-radius: 6px;" />
+                    <button class="btn-upload" id="uploadBtn" onclick="uploadFile()">
+                        📤 Upload
+                    </button>
+                </div>
+                <div id="uploadStatus" style="margin-top: 10px; font-size: 14px;"></div>
             </div>
 
             <div class="results-section" id="resultsSection" style="display: none;">
@@ -496,6 +529,45 @@
                 executeQuery();
             }
         });
+
+        // Upload file to Databricks
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const uploadBtn = document.getElementById('uploadBtn');
+            const uploadStatus = document.getElementById('uploadStatus');
+
+            const file = fileInput.files[0];
+            if (!file) {
+                uploadStatus.innerHTML = '<span style="color: #c33;">Please select a file</span>';
+                return;
+            }
+
+            uploadBtn.disabled = true;
+            uploadStatus.innerHTML = '<span style="color: #666;">Uploading...</span>';
+
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Upload failed');
+                }
+
+                uploadStatus.innerHTML = `<span style="color: #28a745;">✓ ${data.message}</span>`;
+                fileInput.value = '';
+            } catch (error) {
+                uploadStatus.innerHTML = `<span style="color: #c33;">✗ Error: ${error.message}</span>`;
+            } finally {
+                uploadBtn.disabled = false;
+            }
+        }
 
         // Check connection on page load
         checkConnection();

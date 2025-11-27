@@ -1,10 +1,16 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const multer = require('multer');
+const axios = require('axios');
+const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Configure multer for file uploads
+const upload = multer({ dest: 'uploads/', limits: { fileSize: 100 * 1024 * 1024 } }); // 100MB limit
 
 // Basic health check that doesn't require Databricks connection
 app.get('/health', (req, res) => {
@@ -15,6 +21,11 @@ app.get('/health', (req, res) => {
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
+
+// Ensure uploads directory exists
+if (!fs.existsSync('uploads')) {
+  fs.mkdirSync('uploads');
+}
 
 // Databricks connection configuration
 // Configuration can be set via environment variables or Databricks secrets
@@ -134,6 +145,63 @@ app.get('/api/health', (req, res) => {
     environment: process.env.NODE_ENV || 'development',
     instructions: missing.length > 0 ? 'Set the missing environment variables in app.yaml or Databricks App settings. See DEPLOYMENT.md for details.' : null
   });
+});
+
+// Upload file to Databricks volume
+app.post('/api/upload', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const filePath = req.file.path;
+    const fileName = req.file.originalname;
+    const volumePath = '/Volumes/kna_prd_ds/sales_exec/bid_opt';
+    const targetPath = `${volumePath}/${fileName}`;
+
+    // Read file
+    const fileBuffer = fs.readFileSync(filePath);
+    const fileBase64 = fileBuffer.toString('base64');
+
+    // Upload to Databricks volume using REST API
+    const databricksUrl = `https://${databricksConfig.serverHostname}`;
+    const uploadUrl = `${databricksUrl}/api/2.0/volumes/upload`;
+    
+    try {
+      const response = await axios.post(uploadUrl, {
+        file_path: targetPath,
+        contents: fileBase64,
+        overwrite: true
+      }, {
+        headers: {
+          'Authorization': `Bearer ${databricksConfig.accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      // Clean up local file
+      fs.unlinkSync(filePath);
+
+      res.json({ 
+        success: true, 
+        message: `File uploaded successfully to ${targetPath}`,
+        path: targetPath
+      });
+    } catch (error) {
+      // Clean up local file on error
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+      
+      console.error('Databricks upload error:', error.response?.data || error.message);
+      throw new Error(error.response?.data?.error?.message || error.response?.data?.error || 'Failed to upload file to Databricks');
+    }
+  } catch (error) {
+    console.error('Upload error:', error);
+    res.status(500).json({ 
+      error: error.message || 'Failed to upload file'
+    });
+  }
 });
 
 // Serve the main page
