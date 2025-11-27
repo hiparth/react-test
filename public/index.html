@@ -118,6 +118,23 @@
             background: #e0e0e0;
         }
 
+        .btn-download {
+            background: #28a745;
+            color: white;
+            padding: 8px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-download:hover {
+            background: #218838;
+            transform: translateY(-1px);
+        }
+
         .results-section {
             margin-top: 30px;
         }
@@ -242,6 +259,7 @@
             background: #f44336;
         }
     </style>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -273,7 +291,12 @@
             <div class="results-section" id="resultsSection" style="display: none;">
                 <div class="results-header">
                     <h2>Results</h2>
-                    <div class="row-count" id="rowCount"></div>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div class="row-count" id="rowCount"></div>
+                        <button class="btn-download" id="downloadBtn" onclick="downloadExcel()" style="display: none;">
+                            📥 Download Excel
+                        </button>
+                    </div>
                 </div>
                 <div id="resultsContainer"></div>
             </div>
@@ -289,6 +312,9 @@
     </div>
 
     <script>
+        // Store current results for export
+        let currentResults = null;
+
         // Check connection status on load
         async function checkConnection() {
             try {
@@ -344,6 +370,7 @@
                 }
 
                 if (data.success && data.data) {
+                    currentResults = data.data;
                     displayResults(data.data);
                 } else {
                     throw new Error('Unexpected response format');
@@ -361,14 +388,18 @@
             const resultsSection = document.getElementById('resultsSection');
             const resultsContainer = document.getElementById('resultsContainer');
             const rowCount = document.getElementById('rowCount');
+            const downloadBtn = document.getElementById('downloadBtn');
 
             resultsSection.style.display = 'block';
 
             if (!data.rows || data.rows.length === 0) {
                 resultsContainer.innerHTML = '<div class="no-results">No results returned</div>';
                 rowCount.textContent = '0 rows';
+                downloadBtn.style.display = 'none';
                 return;
             }
+
+            downloadBtn.style.display = 'block';
 
             // Get column names
             const columns = data.columns && data.columns.length > 0 
@@ -404,11 +435,52 @@
             errorContainer.innerHTML = `<div class="error-message"><strong>Error:</strong> ${escapeHtml(message)}</div>`;
         }
 
+        // Download results as Excel
+        function downloadExcel() {
+            if (!currentResults || !currentResults.rows || currentResults.rows.length === 0) {
+                showError('No data to download');
+                return;
+            }
+
+            try {
+                const columns = currentResults.columns || (currentResults.rows.length > 0 ? Object.keys(currentResults.rows[0]) : []);
+                
+                // Prepare data for Excel
+                const excelData = [
+                    columns // Header row
+                ];
+
+                // Add data rows
+                currentResults.rows.forEach(row => {
+                    const rowData = columns.map(col => {
+                        const value = row[col];
+                        return value !== null && value !== undefined ? value : '';
+                    });
+                    excelData.push(rowData);
+                });
+
+                // Create workbook and worksheet
+                const ws = XLSX.utils.aoa_to_sheet(excelData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Query Results');
+
+                // Generate filename with timestamp
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+                const filename = `query-results-${timestamp}.xlsx`;
+
+                // Download
+                XLSX.writeFile(wb, filename);
+            } catch (error) {
+                showError('Failed to export to Excel: ' + error.message);
+            }
+        }
+
         // Clear query textarea
         function clearQuery() {
             document.getElementById('sqlQuery').value = '';
             document.getElementById('resultsSection').style.display = 'none';
             document.getElementById('errorContainer').innerHTML = '';
+            currentResults = null;
         }
 
         // Escape HTML to prevent XSS
