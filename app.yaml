@@ -33,9 +33,8 @@ resources:
       scope: sql-app-secrets
       key: access_token
 
-Then update env section to:
 env:
-  - name: DATABRICKS_SERVER_HOSTNAME
+  - name: DATABRICKS_HOST
     valueFrom: databricks_server_hostname
   - name: DATABRICKS_HTTP_PATH
     valueFrom: databricks_http_path
