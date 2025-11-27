@@ -17,12 +17,13 @@ app.use(express.json());
 app.use(express.static('public'));
 
 // Databricks connection configuration
-// Configuration can be set via environment variables or Databricks secrets
-// When deployed on Databricks, use the Databricks UI to set environment variables
+// Supports both PAT (Personal Access Token) and OAuth (Client Credentials)
 const databricksConfig = {
   serverHostname: process.env.DATABRICKS_HOST,
   httpPath: process.env.DATABRICKS_HTTP_PATH,
   accessToken: process.env.DATABRICKS_ACCESS_TOKEN,
+  clientId: process.env.DATABRICKS_CLIENT_ID,
+  clientSecret: process.env.DATABRICKS_CLIENT_SECRET,
 };
 
 // Initialize Databricks SQL client
@@ -43,11 +44,23 @@ async function executeQuery(query) {
   const client = new DBSQLClient();
   
   try {
+    // Use OAuth if client credentials are available, otherwise use PAT
     const connectOptions = {
-      token: databricksConfig.accessToken,
       host: databricksConfig.serverHostname,
       path: databricksConfig.httpPath,
     };
+
+    if (databricksConfig.clientId && databricksConfig.clientSecret) {
+      // OAuth authentication
+      connectOptions.authType = 'databricks-oauth';
+      connectOptions.oauthClientId = databricksConfig.clientId;
+      connectOptions.oauthClientSecret = databricksConfig.clientSecret;
+    } else if (databricksConfig.accessToken) {
+      // PAT authentication
+      connectOptions.token = databricksConfig.accessToken;
+    } else {
+      throw new Error('No authentication method configured. Provide either PAT (DATABRICKS_ACCESS_TOKEN) or OAuth (DATABRICKS_CLIENT_ID + DATABRICKS_CLIENT_SECRET)');
+    }
 
     await client.connect(connectOptions);
     const session = await client.openSession();
@@ -92,13 +105,20 @@ app.post('/api/query', async (req, res) => {
     const missingConfig = [];
     if (!databricksConfig.serverHostname) missingConfig.push('DATABRICKS_HOST');
     if (!databricksConfig.httpPath) missingConfig.push('DATABRICKS_HTTP_PATH');
-    if (!databricksConfig.accessToken) missingConfig.push('DATABRICKS_ACCESS_TOKEN');
+    
+    // Check for authentication (either PAT or OAuth)
+    const hasPAT = !!databricksConfig.accessToken;
+    const hasOAuth = !!(databricksConfig.clientId && databricksConfig.clientSecret);
+    
+    if (!hasPAT && !hasOAuth) {
+      missingConfig.push('DATABRICKS_ACCESS_TOKEN (or DATABRICKS_CLIENT_ID + DATABRICKS_CLIENT_SECRET)');
+    }
     
     if (missingConfig.length > 0) {
       return res.status(500).json({ 
         error: 'Databricks configuration is missing.',
         details: `Missing environment variables: ${missingConfig.join(', ')}`,
-        instructions: 'Please set these environment variables in your app.yaml file or Databricks App configuration. See DEPLOYMENT.md for instructions.'
+        instructions: 'Please set these environment variables in your app.yaml file or Databricks App configuration.'
       });
     }
 
@@ -119,16 +139,23 @@ app.get('/api/health', (req, res) => {
     serverHostname: !!databricksConfig.serverHostname,
     httpPath: !!databricksConfig.httpPath,
     accessToken: !!databricksConfig.accessToken,
+    clientId: !!databricksConfig.clientId,
+    clientSecret: !!databricksConfig.clientSecret,
+    authMethod: (databricksConfig.clientId && databricksConfig.clientSecret) ? 'OAuth' : (databricksConfig.accessToken ? 'PAT' : 'None'),
   };
   
   const missing = [];
   if (!configStatus.serverHostname) missing.push('DATABRICKS_HOST');
   if (!configStatus.httpPath) missing.push('DATABRICKS_HTTP_PATH');
-  if (!configStatus.accessToken) missing.push('DATABRICKS_ACCESS_TOKEN');
+  if (!configStatus.accessToken && !configStatus.clientId) {
+    missing.push('DATABRICKS_ACCESS_TOKEN or DATABRICKS_CLIENT_ID + DATABRICKS_CLIENT_SECRET');
+  }
+  
+  const isConfigured = configStatus.serverHostname && configStatus.httpPath && configStatus.authMethod !== 'None';
   
   res.json({ 
     status: missing.length > 0 ? 'configuration_incomplete' : 'ok',
-    databricksConfigured: Object.values(configStatus).every(v => v),
+    databricksConfigured: isConfigured,
     configStatus,
     missingVariables: missing,
     environment: process.env.NODE_ENV || 'development',
@@ -145,17 +172,26 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Access the app at: http://0.0.0.0:${PORT}`);
   console.log('\nConfiguration Status:');
-  console.log(`  - Server Hostname: ${databricksConfig.serverHostname ? '✓ Set' : '✗ Missing'}`);
-  console.log(`  - HTTP Path: ${databricksConfig.httpPath ? '✓ Set' : '✗ Missing'}`);
-  console.log(`  - Access Token: ${databricksConfig.accessToken ? '✓ Set' : '✗ Missing'}`);
-  
-  if (!databricksConfig.serverHostname || !databricksConfig.httpPath || !databricksConfig.accessToken) {
-    console.log('\n⚠️  WARNING: Databricks configuration is incomplete.');
-    console.log('   Set environment variables:');
-    console.log('   - DATABRICKS_HOST');
-    console.log('   - DATABRICKS_HTTP_PATH');
-    console.log('   - DATABRICKS_ACCESS_TOKEN');
-  }
+    console.log(`  - Server Hostname: ${databricksConfig.serverHostname ? '✓ Set' : '✗ Missing'}`);
+    console.log(`  - HTTP Path: ${databricksConfig.httpPath ? '✓ Set' : '✗ Missing'}`);
+    
+    const authMethod = (databricksConfig.clientId && databricksConfig.clientSecret) ? 'OAuth' : (databricksConfig.accessToken ? 'PAT' : 'None');
+    console.log(`  - Auth Method: ${authMethod}`);
+    if (authMethod === 'OAuth') {
+      console.log(`  - Client ID: ${databricksConfig.clientId ? '✓ Set' : '✗ Missing'}`);
+      console.log(`  - Client Secret: ${databricksConfig.clientSecret ? '✓ Set' : '✗ Missing'}`);
+    } else if (authMethod === 'PAT') {
+      console.log(`  - Access Token: ${databricksConfig.accessToken ? '✓ Set' : '✗ Missing'}`);
+    }
+    
+    if (!databricksConfig.serverHostname || !databricksConfig.httpPath || authMethod === 'None') {
+      console.log('\n⚠️  WARNING: Databricks configuration is incomplete.');
+      console.log('   Set environment variables:');
+      console.log('   - DATABRICKS_HOST');
+      console.log('   - DATABRICKS_HTTP_PATH');
+      console.log('   - DATABRICKS_CLIENT_ID + DATABRICKS_CLIENT_SECRET (OAuth)');
+      console.log('   - OR DATABRICKS_ACCESS_TOKEN (PAT)');
+    }
   
   if (!DBSQLClient) {
     console.warn('\n⚠️  WARNING: Databricks SQL client not loaded. Please install @databricks/sql package.');

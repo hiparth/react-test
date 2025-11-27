@@ -15,6 +15,20 @@ command: ['node', 'server.js']
 
 # Use Databricks Secrets - Add resources via Databricks UI first
 # Then reference them here using valueFrom
+# Option 1: OAuth (Recommended)
+env:
+  - name: DATABRICKS_HOST
+    valueFrom: databricks_server_hostname
+  - name: DATABRICKS_HTTP_PATH
+    valueFrom: databricks_http_path
+  - name: DATABRICKS_CLIENT_ID
+    valueFrom: databricks_client_id
+  - name: DATABRICKS_CLIENT_SECRET
+    valueFrom: databricks_client_secret
+  - name: PORT
+    value: '3000'
+
+# Option 2: PAT (Alternative)
 # env:
 #   - name: DATABRICKS_HOST
 #     valueFrom: databricks_server_hostname
