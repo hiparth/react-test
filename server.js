@@ -6,6 +6,11 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Basic health check that doesn't require Databricks connection
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -136,9 +141,9 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
-  console.log(`Access the app at: http://localhost:${PORT}`);
+  console.log(`Access the app at: http://0.0.0.0:${PORT}`);
   console.log('\nConfiguration Status:');
   console.log(`  - Server Hostname: ${databricksConfig.serverHostname ? '✓ Set' : '✗ Missing'}`);
   console.log(`  - HTTP Path: ${databricksConfig.httpPath ? '✓ Set' : '✗ Missing'}`);
@@ -147,7 +152,7 @@ app.listen(PORT, () => {
   if (!databricksConfig.serverHostname || !databricksConfig.httpPath || !databricksConfig.accessToken) {
     console.log('\n⚠️  WARNING: Databricks configuration is incomplete.');
     console.log('   Set environment variables:');
-      console.log('   - DATABRICKS_HOST');
+    console.log('   - DATABRICKS_HOST');
     console.log('   - DATABRICKS_HTTP_PATH');
     console.log('   - DATABRICKS_ACCESS_TOKEN');
   }
@@ -155,5 +160,8 @@ app.listen(PORT, () => {
   if (!DBSQLClient) {
     console.warn('\n⚠️  WARNING: Databricks SQL client not loaded. Please install @databricks/sql package.');
   }
+}).on('error', (err) => {
+  console.error('Server failed to start:', err);
+  process.exit(1);
 });
 
