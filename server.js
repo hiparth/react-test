@@ -167,7 +167,7 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     console.log('uploadUrl',uploadUrl);
     
     try {
-      const response = await axios.post(uploadUrl, {
+      const response = await axios.put(uploadUrl, {
         file_path: targetPath,
         contents: fileBase64,
         overwrite: true
