@@ -1,0 +1,5 @@
+# Minimal Databricks App Configuration
+# Use this if the standard app.yaml doesn't work
+
+command: ['node', 'server.js']
+

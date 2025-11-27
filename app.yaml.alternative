@@ -1,0 +1,6 @@
+# Alternative Databricks App Configuration
+# Use this if the standard app.yaml doesn't work
+# This version omits the env section - set environment variables in Databricks UI instead
+
+command: ['node', 'server.js']
+

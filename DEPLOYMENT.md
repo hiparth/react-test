@@ -159,11 +159,41 @@ For better security, use Databricks Secrets instead of environment variables:
 
 ## Troubleshooting
 
+### app.yaml Format Errors
+
+If you get "Error reading app.yaml file, please ensure it is in the correct format":
+
+1. **Check YAML syntax:**
+   - Use spaces (not tabs) for indentation
+   - Ensure consistent 2-space indentation
+   - Remove any trailing spaces
+
+2. **Try minimal format:**
+   If the current `app.yaml` doesn't work, try the minimal version:
+   ```yaml
+   command: ['node', 'server.js']
+   ```
+   (See `app.yaml.minimal` file)
+
+3. **Alternative command format:**
+   Some Databricks versions may require:
+   ```yaml
+   command: node server.js
+   ```
+   Instead of the array format.
+
+4. **Remove env section:**
+   If environment variables cause issues, remove the `env:` section and set variables in the Databricks UI instead.
+
+5. **Validate YAML:**
+   Use an online YAML validator to check syntax before deploying.
+
 ### Application Won't Start
 
 - **Check Node.js version:** Ensure Node.js 14+ is installed
 - **Verify dependencies:** Run `npm install` in the app directory
 - **Check logs:** Review Databricks logs for error messages
+- **Verify app.yaml:** Ensure the file is in the root directory and properly formatted
 
 ### Connection Issues
 
