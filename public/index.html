@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Databricks SQL Query Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .query-section {
+            margin-bottom: 30px;
+        }
+
+        .query-section label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+            font-size: 1.1em;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 150px;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        button {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-execute {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            flex: 1;
+        }
+
+        .btn-execute:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-execute:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-clear {
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .btn-clear:hover {
+            background: #e0e0e0;
+        }
+
+        .results-section {
+            margin-top: 30px;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .results-header h2 {
+            color: #333;
+            font-size: 1.5em;
+        }
+
+        .row-count {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .error-message {
+            background: #fee;
+            border: 2px solid #fcc;
+            border-radius: 8px;
+            padding: 15px;
+            color: #c33;
+            margin-top: 20px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .table-container {
+            overflow-x: auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            border-right: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        th:last-child {
+            border-right: none;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e0e0e0;
+            border-right: 1px solid #e0e0e0;
+        }
+
+        td:last-child {
+            border-right: none;
+        }
+
+        tbody tr:hover {
+            background: #f5f5f5;
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-connected {
+            background: #4caf50;
+        }
+
+        .status-disconnected {
+            background: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Databricks SQL Query Tool</h1>
+            <p>Execute SQL queries against your Databricks data source</p>
+            <div style="margin-top: 15px;">
+                <span class="status-indicator" id="statusIndicator"></span>
+                <span id="statusText">Checking connection...</span>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="query-section">
+                <label for="sqlQuery">Enter SQL Query:</label>
+                <textarea 
+                    id="sqlQuery" 
+                    placeholder="SELECT * FROM your_table LIMIT 100;"
+                    spellcheck="false"
+                ></textarea>
+                <div class="button-group">
+                    <button class="btn-execute" id="executeBtn" onclick="executeQuery()">
+                        Execute Query
+                    </button>
+                    <button class="btn-clear" onclick="clearQuery()">Clear</button>
+                </div>
+            </div>
+
+            <div class="results-section" id="resultsSection" style="display: none;">
+                <div class="results-header">
+                    <h2>Results</h2>
+                    <div class="row-count" id="rowCount"></div>
+                </div>
+                <div id="resultsContainer"></div>
+            </div>
+
+            <div id="errorContainer"></div>
+            <div id="loadingContainer" style="display: none;">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Executing query...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check connection status on load
+        async function checkConnection() {
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                
+                const indicator = document.getElementById('statusIndicator');
+                const statusText = document.getElementById('statusText');
+                
+                if (data.databricksConfigured) {
+                    indicator.className = 'status-indicator status-connected';
+                    statusText.textContent = 'Connected to Databricks';
+                } else {
+                    indicator.className = 'status-indicator status-disconnected';
+                    statusText.textContent = 'Databricks not configured';
+                }
+            } catch (error) {
+                const indicator = document.getElementById('statusIndicator');
+                const statusText = document.getElementById('statusText');
+                indicator.className = 'status-indicator status-disconnected';
+                statusText.textContent = 'Connection error';
+            }
+        }
+
+        // Execute SQL query
+        async function executeQuery() {
+            const query = document.getElementById('sqlQuery').value.trim();
+            
+            if (!query) {
+                showError('Please enter a SQL query');
+                return;
+            }
+
+            // Show loading state
+            document.getElementById('loadingContainer').style.display = 'block';
+            document.getElementById('resultsSection').style.display = 'none';
+            document.getElementById('errorContainer').innerHTML = '';
+            document.getElementById('executeBtn').disabled = true;
+
+            try {
+                const response = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query }),
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Query execution failed');
+                }
+
+                if (data.success && data.data) {
+                    displayResults(data.data);
+                } else {
+                    throw new Error('Unexpected response format');
+                }
+            } catch (error) {
+                showError(error.message || 'Failed to execute query');
+            } finally {
+                document.getElementById('loadingContainer').style.display = 'none';
+                document.getElementById('executeBtn').disabled = false;
+            }
+        }
+
+        // Display query results
+        function displayResults(data) {
+            const resultsSection = document.getElementById('resultsSection');
+            const resultsContainer = document.getElementById('resultsContainer');
+            const rowCount = document.getElementById('rowCount');
+
+            resultsSection.style.display = 'block';
+
+            if (!data.rows || data.rows.length === 0) {
+                resultsContainer.innerHTML = '<div class="no-results">No results returned</div>';
+                rowCount.textContent = '0 rows';
+                return;
+            }
+
+            // Get column names
+            const columns = data.columns && data.columns.length > 0 
+                ? data.columns 
+                : Object.keys(data.rows[0]);
+
+            // Build table
+            let tableHTML = '<div class="table-container"><table><thead><tr>';
+            columns.forEach(col => {
+                tableHTML += `<th>${escapeHtml(String(col))}</th>`;
+            });
+            tableHTML += '</tr></thead><tbody>';
+
+            data.rows.forEach(row => {
+                tableHTML += '<tr>';
+                columns.forEach(col => {
+                    const value = row[col] !== null && row[col] !== undefined 
+                        ? String(row[col]) 
+                        : '';
+                    tableHTML += `<td>${escapeHtml(value)}</td>`;
+                });
+                tableHTML += '</tr>';
+            });
+
+            tableHTML += '</tbody></table></div>';
+            resultsContainer.innerHTML = tableHTML;
+            rowCount.textContent = `${data.rowCount || data.rows.length} row(s)`;
+        }
+
+        // Show error message
+        function showError(message) {
+            const errorContainer = document.getElementById('errorContainer');
+            errorContainer.innerHTML = `<div class="error-message"><strong>Error:</strong> ${escapeHtml(message)}</div>`;
+        }
+
+        // Clear query textarea
+        function clearQuery() {
+            document.getElementById('sqlQuery').value = '';
+            document.getElementById('resultsSection').style.display = 'none';
+            document.getElementById('errorContainer').innerHTML = '';
+        }
+
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Allow Ctrl+Enter to execute query
+        document.getElementById('sqlQuery').addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') {
+                executeQuery();
+            }
+        });
+
+        // Check connection on page load
+        checkConnection();
+    </script>
+</body>
+</html>
+

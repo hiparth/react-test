@@ -1,0 +1,20 @@
+{
+  "name": "databricks-sql-query-app",
+  "version": "1.0.0",
+  "description": "Simple Node.js app to execute SQL queries on Databricks",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": ["databricks", "sql", "query"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "@databricks/sql": "^1.0.0",
+    "dotenv": "^16.3.1",
+    "cors": "^2.8.5"
+  }
+}
+
