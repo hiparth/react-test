@@ -163,17 +163,22 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     // Upload to Databricks volume using Files API
     // API contract: /api/2.0/fs/files{file_path}
     const databricksUrl = `https://${databricksConfig.serverHostname}`;
-    const uploadUrl = `${databricksUrl}/api/2.0/fs/files${encodeURIComponent(targetPath)}`;
+    // Path should not be URL encoded, use raw path
+    const uploadUrl = `${databricksUrl}/api/2.0/fs/files${targetPath}`;
     
     try {
-      // Files API expects content (base64 encoded) in request body
-      const response = await axios.put(uploadUrl, fileBase64, {
+      // Convert base64 back to buffer for binary upload
+      const fileBuffer = Buffer.from(fileBase64, 'base64');
+      
+      console.log('uploadUrl',uploadUrl);
+      // Files API expects binary content in request body
+      const response = await axios.put(uploadUrl, fileBuffer, {
         headers: {
           'Authorization': `Bearer ${databricksConfig.accessToken}`,
           'Content-Type': 'application/octet-stream'
         },
         params: {
-          overwrite: true
+          overwrite: 'true'
         }
       });
 
