@@ -13,38 +13,15 @@ command: ['node', 'server.js']
 #   - name: PORT
 #     value: '3000'
 
-# Option 2: Use Databricks Secrets (Recommended for production)
-# Uncomment and configure the resources section below, then update env to use valueFrom
-# 
-# Use direct values if secrets aren't configured
-
+# Use Databricks Secrets - Add resources via Databricks UI first
+# Then reference them here using valueFrom
 env:
   - name: DATABRICKS_HOST
-    value: 'dbc-0425a584-f749.cloud.databricks.com'
+    valueFrom: databricks_server_hostname
   - name: DATABRICKS_HTTP_PATH
-    value: '/sql/1.0/warehouses/384c984e5512b065'
+    valueFrom: databricks_http_path
   - name: DATABRICKS_ACCESS_TOKEN
-    value: 'dapi53b32a2a4e9f9f66b90fbc357846063d'
+    valueFrom: databricks_access_token
   - name: PORT
     value: '3000'
-
-# Uncomment below to use Databricks Secrets instead:
-# resources:
-#   - name: databricks_server_hostname
-#     type: secret
-#     properties:
-#       scope: sql-app-secrets
-#       key: server_hostname
-#   - name: databricks_http_path
-#     type: secret
-#     properties:
-#       scope: sql-app-secrets
-#       key: http_path
-#   - name: databricks_access_token
-#     type: secret
-#     properties:
-#       scope: sql-app-secrets
-#       key: access_token
-# 
-# Then update env to use valueFrom instead of value
 
