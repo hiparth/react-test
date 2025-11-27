@@ -15,7 +15,7 @@ app.use(express.static('public'));
 // Configuration can be set via environment variables or Databricks secrets
 // When deployed on Databricks, use the Databricks UI to set environment variables
 const databricksConfig = {
-  serverHostname: process.env.DATABRICKS_SERVER_HOSTNAME,
+  serverHostname: process.env.DATABRICKS_HOST,
   httpPath: process.env.DATABRICKS_HTTP_PATH,
   accessToken: process.env.DATABRICKS_ACCESS_TOKEN,
 };
@@ -84,9 +84,16 @@ app.post('/api/query', async (req, res) => {
     }
 
     // Validate Databricks configuration
-    if (!databricksConfig.serverHostname || !databricksConfig.httpPath || !databricksConfig.accessToken) {
+    const missingConfig = [];
+    if (!databricksConfig.serverHostname) missingConfig.push('DATABRICKS_SERVER_HOSTNAME');
+    if (!databricksConfig.httpPath) missingConfig.push('DATABRICKS_HTTP_PATH');
+    if (!databricksConfig.accessToken) missingConfig.push('DATABRICKS_ACCESS_TOKEN');
+    
+    if (missingConfig.length > 0) {
       return res.status(500).json({ 
-        error: 'Databricks configuration is missing. Please check your environment variables or Databricks secrets.' 
+        error: 'Databricks configuration is missing.',
+        details: `Missing environment variables: ${missingConfig.join(', ')}`,
+        instructions: 'Please set these environment variables in your app.yaml file or Databricks App configuration. See DEPLOYMENT.md for instructions.'
       });
     }
 
@@ -109,11 +116,18 @@ app.get('/api/health', (req, res) => {
     accessToken: !!databricksConfig.accessToken,
   };
   
+  const missing = [];
+  if (!configStatus.serverHostname) missing.push('DATABRICKS_SERVER_HOSTNAME');
+  if (!configStatus.httpPath) missing.push('DATABRICKS_HTTP_PATH');
+  if (!configStatus.accessToken) missing.push('DATABRICKS_ACCESS_TOKEN');
+  
   res.json({ 
-    status: 'ok', 
+    status: missing.length > 0 ? 'configuration_incomplete' : 'ok',
     databricksConfigured: Object.values(configStatus).every(v => v),
     configStatus,
-    environment: process.env.NODE_ENV || 'development'
+    missingVariables: missing,
+    environment: process.env.NODE_ENV || 'development',
+    instructions: missing.length > 0 ? 'Set the missing environment variables in app.yaml or Databricks App settings. See DEPLOYMENT.md for details.' : null
   });
 });
 

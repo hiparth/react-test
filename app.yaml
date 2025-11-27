@@ -1,2 +1,46 @@
 command: ['node', 'server.js']
 
+# Environment variables - Option 1: Direct values (for testing)
+# Replace with your actual values or use Option 2 (secrets) for production
+
+# env:
+#   - name: DATABRICKS_SERVER_HOSTNAME
+#     value: 'your-databricks-server-hostname'
+#   - name: DATABRICKS_HTTP_PATH
+#     value: 'your-databricks-http-path'
+#   - name: DATABRICKS_ACCESS_TOKEN
+#     value: 'your-databricks-access-token'
+#   - name: PORT
+#     value: '3000'
+
+# Option 2: Use Databricks Secrets (Recommended for production)
+# Uncomment and configure the resources section below, then update env to use valueFrom
+# 
+resources:
+  - name: databricks_server_hostname
+    type: secret
+    properties:
+      scope: sql-app-secrets
+      key: server_hostname
+  - name: databricks_http_path
+    type: secret
+    properties:
+      scope: sql-app-secrets
+      key: http_path
+  - name: databricks_access_token
+    type: secret
+    properties:
+      scope: sql-app-secrets
+      key: access_token
+
+Then update env section to:
+env:
+  - name: DATABRICKS_SERVER_HOSTNAME
+    valueFrom: databricks_server_hostname
+  - name: DATABRICKS_HTTP_PATH
+    valueFrom: databricks_http_path
+  - name: DATABRICKS_ACCESS_TOKEN
+    valueFrom: databricks_access_token
+  - name: PORT
+    value: '3000'
+
