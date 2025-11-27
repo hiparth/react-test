@@ -3,14 +3,17 @@ const cors = require('cors');
 const path = require('path');
 const multer = require('multer');
 const axios = require('axios');
-const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Configure multer for file uploads
-const upload = multer({ dest: 'uploads/', limits: { fileSize: 100 * 1024 * 1024 } }); // 100MB limit
+// Configure multer for memory storage (no disk writes)
+const storage = multer.memoryStorage();
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 100 * 1024 * 1024 } // 100MB limit
+});
 
 // Basic health check that doesn't require Databricks connection
 app.get('/health', (req, res) => {
@@ -21,11 +24,6 @@ app.get('/health', (req, res) => {
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
-
-// Ensure uploads directory exists
-if (!fs.existsSync('uploads')) {
-  fs.mkdirSync('uploads');
-}
 
 // Databricks connection configuration
 // Configuration can be set via environment variables or Databricks secrets
@@ -154,18 +152,19 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const filePath = req.file.path;
     const fileName = req.file.originalname;
+    const fileBuffer = req.file.buffer; // Get buffer directly from memory
     const volumePath = '/Volumes/kna_prd_ds/sales_exec/bid_opt';
     const targetPath = `${volumePath}/${fileName}`;
 
-    // Read file
-    const fileBuffer = fs.readFileSync(filePath);
+    // Convert buffer to base64
     const fileBase64 = fileBuffer.toString('base64');
 
     // Upload to Databricks volume using REST API
-    const databricksUrl = `https://${databricksConfig.serverHostname}`;
+    const databricksUrl = `https://dbc-0425a584-f749.cloud.databricks.com`;
+    console.log('databricksUrl',databricksUrl);
     const uploadUrl = `${databricksUrl}/api/2.0/volumes/upload`;
+    console.log('uploadUrl',uploadUrl);
     
     try {
       const response = await axios.post(uploadUrl, {
@@ -179,22 +178,19 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
         }
       });
 
-      // Clean up local file
-      fs.unlinkSync(filePath);
-
       res.json({ 
         success: true, 
         message: `File uploaded successfully to ${targetPath}`,
         path: targetPath
       });
     } catch (error) {
-      // Clean up local file on error
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-      
       console.error('Databricks upload error:', error.response?.data || error.message);
-      throw new Error(error.response?.data?.error?.message || error.response?.data?.error || 'Failed to upload file to Databricks');
+      const errorMsg = error.response?.data?.error?.message || 
+                      error.response?.data?.error || 
+                      error.response?.data?.message ||
+                      error.message || 
+                      'Failed to upload file to Databricks';
+      throw new Error(errorMsg);
     }
   } catch (error) {
     console.error('Upload error:', error);
