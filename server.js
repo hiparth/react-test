@@ -259,7 +259,7 @@ function parseWeekToDate(weekStr) {
 // Dashboard API endpoints
 app.get('/api/dashboard/filters/retailers', async (req, res) => {
   try {
-    const query = `SELECT DISTINCT account_name as retailer FROM bid_opt_master_fact_historical ORDER BY retailer`;
+    const query = `SELECT DISTINCT account_name as retailer FROM kna_prd_ds.sales_exec.bid_opt_master_fact_historical ORDER BY retailer`;
     const result = await executeQuery(query);
     res.json({ success: true, data: result.rows.map(r => r.retailer) });
   } catch (error) {
@@ -291,7 +291,7 @@ app.get('/api/dashboard/filters/campaigns', async (req, res) => {
     }
     
     const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
-    const query = `SELECT DISTINCT campaign_id FROM bid_opt_master_fact_historical ${whereClause} ORDER BY campaign_id`;
+    const query = `SELECT DISTINCT campaign_id FROM kna_prd_ds.sales_exec.bid_opt_master_fact_historical ${whereClause} ORDER BY campaign_id`;
     const result = await executeQuery(query);
     res.json({ success: true, data: result.rows.map(r => r.campaign_id) });
   } catch (error) {
@@ -323,7 +323,7 @@ app.get('/api/dashboard/filters/keywords', async (req, res) => {
     }
     
     const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
-    const query = `SELECT DISTINCT keyword_id FROM bid_opt_master_fact_historical ${whereClause} ORDER BY keyword_id`;
+    const query = `SELECT DISTINCT keyword_id FROM kna_prd_ds.sales_exec.bid_opt_master_fact_historical ${whereClause} ORDER BY keyword_id`;
     const result = await executeQuery(query);
     res.json({ success: true, data: result.rows.map(r => r.keyword_id) });
   } catch (error) {
@@ -352,7 +352,7 @@ app.get('/api/dashboard/filters/weeks', async (req, res) => {
     }
     
     const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
-    const query = `SELECT DISTINCT DATE_TRUNC('week', date) as week FROM bid_opt_master_fact_historical ${whereClause} ORDER BY week DESC LIMIT 20`;
+    const query = `SELECT DISTINCT DATE_TRUNC('week', date) as week FROM kna_prd_ds.sales_exec.bid_opt_master_fact_historical ${whereClause} ORDER BY week DESC LIMIT 20`;
     const result = await executeQuery(query);
     res.json({ success: true, data: result.rows.map(r => r.week) });
   } catch (error) {
@@ -404,7 +404,7 @@ app.get('/api/dashboard/data', async (req, res) => {
         SUM(clicks) / NULLIF(SUM(impressions), 0) as ctr,
         SUM(cost) / NULLIF(SUM(conversions), 0) as cpa,
         SUM(conversions) / NULLIF(SUM(clicks), 0) as conversion_rate
-      FROM bid_opt_master_fact_historical
+      FROM kna_prd_ds.sales_exec.bid_opt_master_fact_historical
       ${whereClause}
       GROUP BY week
       ORDER BY week
