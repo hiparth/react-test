@@ -292,19 +292,19 @@ app.get('/api/dashboard/filters/campaigns', async (req, res) => {
     
     const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
     const query = `
-      SELECT DISTINCT f.campaign_id, d.campaign_name 
+      SELECT DISTINCT f.campaign_id, COALESCE(d.campaign_name, f.campaign_id) as campaign_name
       FROM kna_prd_ds.sales_exec.bid_opt_master_fact_historical f
       LEFT JOIN kna_prd_ds.sales_exec.bid_opt_master_dim_historical d 
         ON f.campaign_id = d.campaign_id AND f.keyword_id = d.keyword_id
       ${whereClause} 
-      ORDER BY d.campaign_name, f.campaign_id
+      ORDER BY campaign_name, f.campaign_id
     `;
     const result = await executeQuery(query);
     res.json({ 
       success: true, 
       data: result.rows.map(r => ({
-        id: r.campaign_id,
-        name: r.campaign_name || r.campaign_id
+        id: String(r.campaign_id),
+        name: String(r.campaign_name || r.campaign_id)
       }))
     });
   } catch (error) {
@@ -337,19 +337,19 @@ app.get('/api/dashboard/filters/keywords', async (req, res) => {
     
     const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
     const query = `
-      SELECT DISTINCT f.keyword_id, d.keyword 
+      SELECT DISTINCT f.keyword_id, COALESCE(d.keyword, f.keyword_id) as keyword
       FROM kna_prd_ds.sales_exec.bid_opt_master_fact_historical f
       LEFT JOIN kna_prd_ds.sales_exec.bid_opt_master_dim_historical d 
         ON f.campaign_id = d.campaign_id AND f.keyword_id = d.keyword_id
       ${whereClause} 
-      ORDER BY d.keyword, f.keyword_id
+      ORDER BY keyword, f.keyword_id
     `;
     const result = await executeQuery(query);
     res.json({ 
       success: true, 
       data: result.rows.map(r => ({
-        id: r.keyword_id,
-        name: r.keyword || r.keyword_id
+        id: String(r.keyword_id),
+        name: String(r.keyword || r.keyword_id)
       }))
     });
   } catch (error) {

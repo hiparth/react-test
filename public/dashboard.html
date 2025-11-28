@@ -114,7 +114,7 @@
             <div class="flex gap-3 flex-wrap">
                 <!-- Retailer Filter -->
                 <div class="filter-dropdown relative">
-                    <div class="filter-button bg-white border border-gray-200 py-2.5 px-4 rounded-md cursor-pointer flex items-center justify-between min-w-[180px] text-sm" onclick="toggleDropdown('retailer')">
+                    <div class="filter-button bg-white border border-gray-200 py-2.5 px-4 rounded-md cursor-pointer flex items-center justify-between min-w-[220px] text-sm" onclick="toggleDropdown('retailer')">
                         <span id="retailer-label">Retailer: All</span>
                         <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
@@ -131,7 +131,7 @@
                 
                 <!-- Campaign Filter -->
                 <div class="filter-dropdown relative">
-                    <div class="filter-button bg-white border border-gray-200 py-2.5 px-4 rounded-md cursor-pointer flex items-center justify-between min-w-[180px] text-sm" onclick="toggleDropdown('campaign')">
+                    <div class="filter-button bg-white border border-gray-200 py-2.5 px-4 rounded-md cursor-pointer flex items-center justify-between min-w-[220px] text-sm" onclick="toggleDropdown('campaign')">
                         <span id="campaign-label">Campaign: All Campaign</span>
                         <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
@@ -148,7 +148,7 @@
                 
                 <!-- Keywords Filter -->
                 <div class="filter-dropdown relative">
-                    <div class="filter-button bg-white border border-gray-200 py-2.5 px-4 rounded-md cursor-pointer flex items-center justify-between min-w-[180px] text-sm" onclick="toggleDropdown('keywords')">
+                    <div class="filter-button bg-white border border-gray-200 py-2.5 px-4 rounded-md cursor-pointer flex items-center justify-between min-w-[220px] text-sm" onclick="toggleDropdown('keywords')">
                         <span id="keywords-label">Keywords: All Keywords</span>
                         <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
@@ -165,7 +165,7 @@
                 
                 <!-- Week Filter -->
                 <div class="filter-dropdown relative">
-                    <div class="filter-button bg-white border border-gray-200 py-2.5 px-4 rounded-md cursor-pointer flex items-center justify-between min-w-[180px] text-sm" onclick="toggleDropdown('week')">
+                    <div class="filter-button bg-white border border-gray-200 py-2.5 px-4 rounded-md cursor-pointer flex items-center justify-between min-w-[220px] text-sm" onclick="toggleDropdown('week')">
                         <span id="week-label">Select Week: All</span>
                         <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
@@ -398,12 +398,15 @@
                 const campaignRes = await fetch(`/api/dashboard/filters/campaigns?${params.toString()}`);
                 const campaignData = await campaignRes.json();
                 if (campaignData.success) {
-                    // Ensure we store the full objects with id and name
+                    // Store the full objects with id and name - ensure proper structure
                     filterData.campaigns = campaignData.data.map(item => {
-                        if (typeof item === 'object' && item.id && item.name) {
-                            return item;
+                        if (typeof item === 'object' && item.id !== undefined) {
+                            return {
+                                id: String(item.id),
+                                name: item.name || String(item.id)
+                            };
                         }
-                        return { id: item, name: item };
+                        return { id: String(item), name: String(item) };
                     });
                     populateFilter('campaign', filterData.campaigns);
                 }
@@ -412,12 +415,15 @@
                 const keywordRes = await fetch(`/api/dashboard/filters/keywords?${params.toString()}`);
                 const keywordData = await keywordRes.json();
                 if (keywordData.success) {
-                    // Ensure we store the full objects with id and name
+                    // Store the full objects with id and name - ensure proper structure
                     filterData.keywords = keywordData.data.map(item => {
-                        if (typeof item === 'object' && item.id && item.name) {
-                            return item;
+                        if (typeof item === 'object' && item.id !== undefined) {
+                            return {
+                                id: String(item.id),
+                                name: item.name || String(item.id)
+                            };
                         }
-                        return { id: item, name: item };
+                        return { id: String(item), name: String(item) };
                     });
                     populateFilter('keywords', filterData.keywords);
                 }
@@ -547,19 +553,23 @@
                 else if (filterType === 'week') label.textContent = 'Select Week: All';
             } else if (selected.length === 1) {
                 // Get display name from filterData
-                let displayName = selected[0];
-                if (filterType === 'campaign') {
+                let displayName = String(selected[0]);
+                if (filterType === 'campaign' && filterData.campaigns && filterData.campaigns.length > 0) {
                     const option = filterData.campaigns.find(c => {
-                        const id = typeof c === 'object' ? c.id : c;
-                        return id === selected[0];
+                        const id = typeof c === 'object' ? String(c.id) : String(c);
+                        return id === String(selected[0]);
                     });
-                    displayName = option ? (typeof option === 'object' ? option.name : option) : selected[0];
-                } else if (filterType === 'keywords') {
+                    if (option) {
+                        displayName = typeof option === 'object' ? (option.name || String(option.id)) : String(option);
+                    }
+                } else if (filterType === 'keywords' && filterData.keywords && filterData.keywords.length > 0) {
                     const option = filterData.keywords.find(k => {
-                        const id = typeof k === 'object' ? k.id : k;
-                        return id === selected[0];
+                        const id = typeof k === 'object' ? String(k.id) : String(k);
+                        return id === String(selected[0]);
                     });
-                    displayName = option ? (typeof option === 'object' ? option.name : option) : selected[0];
+                    if (option) {
+                        displayName = typeof option === 'object' ? (option.name || String(option.id)) : String(option);
+                    }
                 }
                 const prefix = filterType === 'retailer' ? 'Retailer' : 
                               filterType === 'campaign' ? 'Campaign' :
