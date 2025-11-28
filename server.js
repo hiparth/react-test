@@ -511,9 +511,173 @@ app.get('/api/dashboard/data', async (req, res) => {
   }
 });
 
+// Performance Data API endpoint
+app.get('/api/performance-data', async (req, res) => {
+  try {
+    const { retailers, campaigns, keywords, weeks } = req.query;
+    const whereClauses = [];
+    
+    if (retailers && retailers !== 'all') {
+      const retailerList = retailers.split(',').map(r => `'${r.replace(/'/g, "''")}'`).join(',');
+      whereClauses.push(`f.account_name IN (${retailerList})`);
+    }
+    
+    if (campaigns && campaigns !== 'all') {
+      const campaignList = campaigns.split(',').map(c => `'${c.replace(/'/g, "''")}'`).join(',');
+      whereClauses.push(`f.campaign_id IN (${campaignList})`);
+    }
+    
+    if (keywords && keywords !== 'all') {
+      const keywordList = keywords.split(',').map(k => `'${k.replace(/'/g, "''")}'`).join(',');
+      whereClauses.push(`f.keyword_id IN (${keywordList})`);
+    }
+    
+    // Get current week and previous week for delta calculation
+    let currentWeekFilter = '';
+    let previousWeekFilter = '';
+    
+    if (weeks && weeks !== 'all') {
+      const weekDates = weeks.split(',').map(w => {
+        // Handle both date format (YYYY-MM-DD) and "Wo ..." format
+        let dateStr = w;
+        if (w.startsWith('Wo ')) {
+          dateStr = parseWeekToDate(w);
+        }
+        return `DATE_TRUNC('week', f.date) = CAST('${dateStr}' AS DATE)`;
+      });
+      currentWeekFilter = `(${weekDates.join(' OR ')})`;
+      
+      // For previous week, subtract 7 days from each selected week
+      const prevWeekDates = weeks.split(',').map(w => {
+        let dateStr = w;
+        if (w.startsWith('Wo ')) {
+          dateStr = parseWeekToDate(w);
+        }
+        const date = new Date(dateStr);
+        date.setDate(date.getDate() - 7);
+        const prevDateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        return `DATE_TRUNC('week', f.date) = CAST('${prevDateStr}' AS DATE)`;
+      });
+      previousWeekFilter = `(${prevWeekDates.join(' OR ')})`;
+    } else {
+      // If no week selected, use the most recent week
+      currentWeekFilter = `DATE_TRUNC('week', f.date) = (SELECT MAX(DATE_TRUNC('week', date)) FROM kna_prd_ds.sales_exec.bid_opt_master_fact_historical)`;
+      previousWeekFilter = `DATE_TRUNC('week', f.date) = DATE_SUB((SELECT MAX(DATE_TRUNC('week', date)) FROM kna_prd_ds.sales_exec.bid_opt_master_fact_historical), INTERVAL 7 DAY)`;
+    }
+    
+    const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    
+    // Get current week data grouped by keyword and campaign
+    const currentWeekQuery = `
+      SELECT 
+        f.campaign_id,
+        f.keyword_id,
+        d.keyword,
+        SUM(f.impressions) as impressions,
+        SUM(f.clicks) as clicks,
+        SUM(f.conversions) as conversions,
+        SUM(f.cost) as spend,
+        SUM(f.revenue) as sales_rev,
+        AVG(f.avg_cpc) as cpc,
+        AVG(f.avg_pos) as avg_rank,
+        SUM(f.revenue) / NULLIF(SUM(f.cost), 0) as roas,
+        SUM(f.clicks) / NULLIF(SUM(f.impressions), 0) as ctr,
+        SUM(f.cost) / NULLIF(SUM(f.conversions), 0) as cpa,
+        SUM(f.conversions) / NULLIF(SUM(f.clicks), 0) as conversion_rate
+      FROM kna_prd_ds.sales_exec.bid_opt_master_fact_historical f
+      LEFT JOIN kna_prd_ds.sales_exec.bid_opt_master_dim_historical d
+        ON CAST(f.keyword_id AS STRING) = CAST(d.keyword_id AS STRING)
+        AND f.account_name = d.account_name
+      ${whereClause ? whereClause + ' AND' : 'WHERE'} ${currentWeekFilter}
+      GROUP BY f.campaign_id, f.keyword_id, d.keyword
+    `;
+    
+    // Get previous week data for delta calculation
+    const previousWeekQuery = `
+      SELECT 
+        f.campaign_id,
+        f.keyword_id,
+        SUM(f.impressions) as impressions,
+        SUM(f.clicks) as clicks,
+        SUM(f.conversions) as conversions,
+        SUM(f.cost) as spend,
+        SUM(f.revenue) as sales_rev,
+        AVG(f.avg_cpc) as cpc,
+        AVG(f.avg_pos) as avg_rank,
+        SUM(f.revenue) / NULLIF(SUM(f.cost), 0) as roas,
+        SUM(f.clicks) / NULLIF(SUM(f.impressions), 0) as ctr,
+        SUM(f.cost) / NULLIF(SUM(f.conversions), 0) as cpa,
+        SUM(f.conversions) / NULLIF(SUM(f.clicks), 0) as conversion_rate
+      FROM kna_prd_ds.sales_exec.bid_opt_master_fact_historical f
+      ${whereClause ? whereClause + ' AND' : 'WHERE'} ${previousWeekFilter}
+      GROUP BY f.campaign_id, f.keyword_id
+    `;
+    
+    const [currentWeekResult, previousWeekResult] = await Promise.all([
+      executeQuery(currentWeekQuery),
+      executeQuery(previousWeekQuery)
+    ]);
+    
+    // Create a map of previous week data by campaign_id + keyword_id
+    const prevWeekMap = new Map();
+    previousWeekResult.rows.forEach(row => {
+      const key = `${row.campaign_id}_${row.keyword_id}`;
+      prevWeekMap.set(key, row);
+    });
+    
+    // Calculate deltas for each current week row
+    const dataWithDeltas = currentWeekResult.rows.map(row => {
+      const key = `${row.campaign_id}_${row.keyword_id}`;
+      const prevRow = prevWeekMap.get(key);
+      
+      const calculateDelta = (current, previous) => {
+        if (!previous || previous === 0 || !current || current === 0) return null;
+        return ((current - previous) / previous) * 100;
+      };
+      
+      return {
+        keyword: row.keyword || row.keyword_id,
+        impressions: row.impressions || 0,
+        impressions_delta: prevRow ? calculateDelta(row.impressions, prevRow.impressions) : null,
+        clicks: row.clicks || 0,
+        clicks_delta: prevRow ? calculateDelta(row.clicks, prevRow.clicks) : null,
+        conversions: row.conversions || 0,
+        cpa: row.cpa || 0,
+        cpa_delta: prevRow ? calculateDelta(row.cpa, prevRow.cpa) : null,
+        avg_rank: row.avg_rank || 0,
+        avg_rank_delta: prevRow ? calculateDelta(row.avg_rank, prevRow.avg_rank) : null,
+        ctr: (row.ctr || 0) * 100,
+        ctr_delta: prevRow ? calculateDelta((row.ctr || 0) * 100, (prevRow.ctr || 0) * 100) : null,
+        conversion_rate: (row.conversion_rate || 0) * 100,
+        conversion_rate_delta: prevRow ? calculateDelta((row.conversion_rate || 0) * 100, (prevRow.conversion_rate || 0) * 100) : null,
+        roas: row.roas || 0,
+        roas_delta: prevRow ? calculateDelta(row.roas, prevRow.roas) : null,
+        cpc: row.cpc || 0,
+        cpc_delta: prevRow ? calculateDelta(row.cpc, prevRow.cpc) : null,
+        sales_con: row.conversions || 0,
+        sales_con_delta: prevRow ? calculateDelta(row.conversions, prevRow.conversions) : null,
+        sales_rev: row.sales_rev || 0,
+        sales_rev_delta: prevRow ? calculateDelta(row.sales_rev, prevRow.sales_rev) : null,
+        spend: row.spend || 0,
+        spend_delta: prevRow ? calculateDelta(row.spend, prevRow.spend) : null
+      };
+    });
+    
+    res.json({ success: true, data: dataWithDeltas });
+  } catch (error) {
+    console.error('Error fetching performance data:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Serve dashboard page
 app.get('/dashboard', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+
+// Serve performance data page
+app.get('/performance-data', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'performance-data.html'));
 });
 
 app.listen(PORT, '0.0.0.0', () => {
