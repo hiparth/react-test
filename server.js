@@ -294,22 +294,32 @@ app.get('/api/dashboard/filters/campaigns', async (req, res) => {
     const query = `
       SELECT DISTINCT 
         f.campaign_id, 
-        COALESCE(d.campaign_name, CAST(f.campaign_id AS STRING)) as campaign_name
+        COALESCE(
+          MAX(d.campaign_name), 
+          CAST(f.campaign_id AS STRING)
+        ) as campaign_name
       FROM kna_prd_ds.sales_exec.bid_opt_master_fact_historical f
       LEFT JOIN kna_prd_ds.sales_exec.bid_opt_master_dim_historical d 
-        ON f.campaign_id = d.campaign_id
+        ON CAST(f.campaign_id AS STRING) = CAST(d.campaign_id AS STRING)
+        AND f.account_name = d.account_name
       ${whereClause} 
+      GROUP BY f.campaign_id
       ORDER BY campaign_name, f.campaign_id
     `;
     const result = await executeQuery(query);
-    console.log('Campaigns query result sample:', result.rows.slice(0, 3));
+    console.log('Campaigns query result sample:', JSON.stringify(result.rows.slice(0, 3), null, 2));
+    console.log('Total campaigns found:', result.rows.length);
     res.json({ 
       success: true, 
       data: result.rows.map(r => {
-        const campaignName = r.campaign_name || String(r.campaign_id);
+        // If campaign_name is the same as campaign_id, it means the JOIN didn't find a match
+        const campaignIdStr = String(r.campaign_id);
+        const campaignName = (r.campaign_name && r.campaign_name !== campaignIdStr) 
+          ? String(r.campaign_name) 
+          : campaignIdStr;
         return {
-          id: String(r.campaign_id),
-          name: String(campaignName)
+          id: campaignIdStr,
+          name: campaignName
         };
       })
     });
@@ -345,22 +355,32 @@ app.get('/api/dashboard/filters/keywords', async (req, res) => {
     const query = `
       SELECT DISTINCT 
         f.keyword_id, 
-        COALESCE(d.keyword, CAST(f.keyword_id AS STRING)) as keyword
+        COALESCE(
+          MAX(d.keyword), 
+          CAST(f.keyword_id AS STRING)
+        ) as keyword
       FROM kna_prd_ds.sales_exec.bid_opt_master_fact_historical f
       LEFT JOIN kna_prd_ds.sales_exec.bid_opt_master_dim_historical d 
-        ON f.keyword_id = d.keyword_id
+        ON CAST(f.keyword_id AS STRING) = CAST(d.keyword_id AS STRING)
+        AND f.account_name = d.account_name
       ${whereClause} 
+      GROUP BY f.keyword_id
       ORDER BY keyword, f.keyword_id
     `;
     const result = await executeQuery(query);
-    console.log('Keywords query result sample:', result.rows.slice(0, 3));
+    console.log('Keywords query result sample:', JSON.stringify(result.rows.slice(0, 3), null, 2));
+    console.log('Total keywords found:', result.rows.length);
     res.json({ 
       success: true, 
       data: result.rows.map(r => {
-        const keywordName = r.keyword || String(r.keyword_id);
+        // If keyword is the same as keyword_id, it means the JOIN didn't find a match
+        const keywordIdStr = String(r.keyword_id);
+        const keywordName = (r.keyword && r.keyword !== keywordIdStr) 
+          ? String(r.keyword) 
+          : keywordIdStr;
         return {
-          id: String(r.keyword_id),
-          name: String(keywordName)
+          id: keywordIdStr,
+          name: keywordName
         };
       })
     });
