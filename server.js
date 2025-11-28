@@ -242,9 +242,14 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
   }
 });
 
-// Serve the main page
+// Serve the main page (query tool)
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Serve dashboard page
+app.get('/dashboard', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 
 app.listen(PORT, '0.0.0.0', () => {
