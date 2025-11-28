@@ -116,7 +116,9 @@
                 <div class="filter-dropdown relative">
                     <div class="filter-button bg-white border border-gray-200 py-2.5 px-4 rounded-md cursor-pointer flex items-center justify-between min-w-[180px] text-sm" onclick="toggleDropdown('retailer')">
                         <span id="retailer-label">Retailer: All</span>
-                        <span>▼</span>
+                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
                     </div>
                     <div class="filter-dropdown-content absolute top-full left-0 bg-white border border-gray-200 rounded-md mt-1 min-w-[200px] max-h-[300px] overflow-y-auto z-50 shadow-lg" id="retailer-dropdown">
                         <div class="filter-option py-2.5 px-4 cursor-pointer flex items-center gap-2" onclick="event.stopPropagation()">
@@ -131,7 +133,9 @@
                 <div class="filter-dropdown relative">
                     <div class="filter-button bg-white border border-gray-200 py-2.5 px-4 rounded-md cursor-pointer flex items-center justify-between min-w-[180px] text-sm" onclick="toggleDropdown('campaign')">
                         <span id="campaign-label">Campaign: All Campaign</span>
-                        <span>▼</span>
+                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
                     </div>
                     <div class="filter-dropdown-content absolute top-full left-0 bg-white border border-gray-200 rounded-md mt-1 min-w-[200px] max-h-[300px] overflow-y-auto z-50 shadow-lg" id="campaign-dropdown">
                         <div class="filter-option py-2.5 px-4 cursor-pointer flex items-center gap-2" onclick="event.stopPropagation()">
@@ -146,7 +150,9 @@
                 <div class="filter-dropdown relative">
                     <div class="filter-button bg-white border border-gray-200 py-2.5 px-4 rounded-md cursor-pointer flex items-center justify-between min-w-[180px] text-sm" onclick="toggleDropdown('keywords')">
                         <span id="keywords-label">Keywords: All Keywords</span>
-                        <span>▼</span>
+                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
                     </div>
                     <div class="filter-dropdown-content absolute top-full left-0 bg-white border border-gray-200 rounded-md mt-1 min-w-[200px] max-h-[300px] overflow-y-auto z-50 shadow-lg" id="keywords-dropdown">
                         <div class="filter-option py-2.5 px-4 cursor-pointer flex items-center gap-2" onclick="event.stopPropagation()">
@@ -161,7 +167,9 @@
                 <div class="filter-dropdown relative">
                     <div class="filter-button bg-white border border-gray-200 py-2.5 px-4 rounded-md cursor-pointer flex items-center justify-between min-w-[180px] text-sm" onclick="toggleDropdown('week')">
                         <span id="week-label">Select Week: All</span>
-                        <span>▼</span>
+                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
                     </div>
                     <div class="filter-dropdown-content absolute top-full left-0 bg-white border border-gray-200 rounded-md mt-1 min-w-[200px] max-h-[300px] overflow-y-auto z-50 shadow-lg" id="week-dropdown">
                         <div class="filter-option py-2.5 px-4 cursor-pointer flex items-center gap-2" onclick="event.stopPropagation()">
@@ -181,6 +189,14 @@
             </button>
         </div>
         
+        <!-- Loader -->
+        <div id="loader" class="fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50 hidden">
+            <div class="flex flex-col items-center gap-4">
+                <div class="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-[#8400FF]"></div>
+                <p class="text-gray-600 text-sm">Loading dashboard data...</p>
+            </div>
+        </div>
+        
         <!-- Chart and Metrics -->
         <div class="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-5 mb-5">
             <!-- Chart -->
@@ -190,7 +206,9 @@
                     <div class="filter-dropdown relative">
                         <div class="filter-button bg-white border border-gray-200 py-2.5 px-4 rounded-md cursor-pointer flex items-center justify-between min-w-[140px] text-sm" onclick="toggleDropdown('primary-kpi')">
                             <span id="primary-kpi-label">Primary KPI: Impressions</span>
-                            <span>▼</span>
+                            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
                         </div>
                         <div class="filter-dropdown-content absolute top-full left-0 bg-white border border-gray-200 rounded-md mt-1 min-w-[200px] max-h-[300px] overflow-y-auto z-50 shadow-lg" id="primary-kpi-dropdown">
                             <div class="filter-option py-2.5 px-4 cursor-pointer flex items-center gap-2" onclick="selectKPI('primary', 'Impressions')">Impressions</div>
@@ -204,7 +222,9 @@
                     <div class="filter-dropdown relative">
                         <div class="filter-button bg-white border border-gray-200 py-2.5 px-4 rounded-md cursor-pointer flex items-center justify-between min-w-[140px] text-sm" onclick="toggleDropdown('secondary-kpi')">
                             <span id="secondary-kpi-label">Secondary KPI: ROAS</span>
-                            <span>▼</span>
+                            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
                         </div>
                         <div class="filter-dropdown-content absolute top-full left-0 bg-white border border-gray-200 rounded-md mt-1 min-w-[200px] max-h-[300px] overflow-y-auto z-50 shadow-lg" id="secondary-kpi-dropdown">
                             <div class="filter-option py-2.5 px-4 cursor-pointer flex items-center gap-2" onclick="selectKPI('secondary', 'ROAS')">ROAS</div>
@@ -309,31 +329,39 @@
         
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
+            showLoader();
             loadFilterOptions();
-            loadDashboardData();
             setupClickOutside();
         });
+        
+        // Show loader
+        function showLoader() {
+            document.getElementById('loader').classList.remove('hidden');
+        }
+        
+        // Hide loader
+        function hideLoader() {
+            document.getElementById('loader').classList.add('hidden');
+        }
         
         // Load filter options from API
         async function loadFilterOptions() {
             try {
+                showLoader();
                 // Load retailers
-                const retailerQuery = `SELECT DISTINCT account_name as retailer FROM bid_opt_master_fact_historical ORDER BY retailer`;
-                const retailerRes = await fetch('/api/query', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query: retailerQuery })
-                });
+                const retailerRes = await fetch('/api/dashboard/filters/retailers');
                 const retailerData = await retailerRes.json();
                 if (retailerData.success) {
-                    filterData.retailers = retailerData.data.rows.map(r => r.retailer);
+                    filterData.retailers = retailerData.data;
                     populateFilter('retailer', filterData.retailers);
                 }
                 
                 // Load campaigns, keywords, weeks will be loaded dynamically based on selections
-                updateDependentFilters();
+                await updateDependentFilters();
+                await loadDashboardData();
             } catch (error) {
                 console.error('Error loading filters:', error);
+                hideLoader();
             }
         }
         
@@ -370,7 +398,13 @@
                 const campaignRes = await fetch(`/api/dashboard/filters/campaigns?${params.toString()}`);
                 const campaignData = await campaignRes.json();
                 if (campaignData.success) {
-                    filterData.campaigns = campaignData.data;
+                    // Ensure we store the full objects with id and name
+                    filterData.campaigns = campaignData.data.map(item => {
+                        if (typeof item === 'object' && item.id && item.name) {
+                            return item;
+                        }
+                        return { id: item, name: item };
+                    });
                     populateFilter('campaign', filterData.campaigns);
                 }
                 
@@ -378,7 +412,13 @@
                 const keywordRes = await fetch(`/api/dashboard/filters/keywords?${params.toString()}`);
                 const keywordData = await keywordRes.json();
                 if (keywordData.success) {
-                    filterData.keywords = keywordData.data;
+                    // Ensure we store the full objects with id and name
+                    filterData.keywords = keywordData.data.map(item => {
+                        if (typeof item === 'object' && item.id && item.name) {
+                            return item;
+                        }
+                        return { id: item, name: item };
+                    });
                     populateFilter('keywords', filterData.keywords);
                 }
                 
@@ -398,6 +438,8 @@
                 }
             } catch (error) {
                 console.error('Error updating filters:', error);
+            } finally {
+                hideLoader();
             }
         }
         
