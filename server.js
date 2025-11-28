@@ -279,30 +279,44 @@ app.get('/api/dashboard/filters/retailers', async (req, res) => {
 app.get('/api/dashboard/filters/campaigns', async (req, res) => {
   try {
     const { retailers, keywords, weeks } = req.query;
-    const whereClauses = ['campaign_name IS NOT NULL'];
+    const factWhereClauses = [];
+    const dimWhereClauses = ['d.campaign_name IS NOT NULL'];
     
     if (retailers && retailers !== 'all') {
       const retailerList = retailers.split(',').map(r => `'${r.replace(/'/g, "''")}'`).join(',');
-      whereClauses.push(`account_name IN (${retailerList})`);
+      factWhereClauses.push(`f.account_name IN (${retailerList})`);
+      dimWhereClauses.push(`d.account_name IN (${retailerList})`);
     }
     
     if (keywords && keywords !== 'all') {
-      // Frontend sends keyword IDs, but dimension table filters by keyword names
-      // So we need to filter by keyword_id in dimension table
       const keywordIdList = keywords.split(',').map(k => `'${k.replace(/'/g, "''")}'`).join(',');
-      whereClauses.push(`keyword_id IN (${keywordIdList})`);
+      factWhereClauses.push(`f.keyword_id IN (${keywordIdList})`);
+      dimWhereClauses.push(`d.keyword_id IN (${keywordIdList})`);
     }
     
-    const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    if (weeks && weeks !== 'all') {
+      const weekList = weeks.split(',').map(w => {
+        const date = parseWeekToDate(w);
+        return `DATE_TRUNC('week', f.date) = CAST('${date}' AS DATE)`;
+      }).join(' OR ');
+      factWhereClauses.push(`(${weekList})`);
+    }
     
-    // Query dimension table directly for campaign names, like the Python function
+    const factWhereClause = factWhereClauses.length > 0 ? `WHERE ${factWhereClauses.join(' AND ')}` : '';
+    const dimWhereClause = dimWhereClauses.length > 0 ? `AND ${dimWhereClauses.join(' AND ')}` : '';
+    
+    // Get campaign IDs from fact table that match filters, then get names from dimension table
     const query = `
       SELECT DISTINCT 
-        campaign_id,
-        campaign_name
-      FROM kna_prd_ds.sales_exec.bid_opt_master_dim_historical
-      ${whereClause}
-      ORDER BY campaign_name
+        f.campaign_id,
+        COALESCE(d.campaign_name, CAST(f.campaign_id AS STRING)) as campaign_name
+      FROM kna_prd_ds.sales_exec.bid_opt_master_fact_historical f
+      LEFT JOIN kna_prd_ds.sales_exec.bid_opt_master_dim_historical d 
+        ON CAST(f.campaign_id AS STRING) = CAST(d.campaign_id AS STRING)
+        AND f.account_name = d.account_name
+      ${factWhereClause}
+      ${dimWhereClause}
+      ORDER BY campaign_name, f.campaign_id
       LIMIT 50
     `;
     
@@ -326,30 +340,44 @@ app.get('/api/dashboard/filters/campaigns', async (req, res) => {
 app.get('/api/dashboard/filters/keywords', async (req, res) => {
   try {
     const { retailers, campaigns, weeks } = req.query;
-    const whereClauses = ['keyword IS NOT NULL'];
+    const factWhereClauses = [];
+    const dimWhereClauses = ['d.keyword IS NOT NULL'];
     
     if (retailers && retailers !== 'all') {
       const retailerList = retailers.split(',').map(r => `'${r.replace(/'/g, "''")}'`).join(',');
-      whereClauses.push(`account_name IN (${retailerList})`);
+      factWhereClauses.push(`f.account_name IN (${retailerList})`);
+      dimWhereClauses.push(`d.account_name IN (${retailerList})`);
     }
     
     if (campaigns && campaigns !== 'all') {
-      // Frontend sends campaign IDs, but dimension table filters by campaign names
-      // So we need to filter by campaign_id in dimension table
       const campaignIdList = campaigns.split(',').map(c => `'${c.replace(/'/g, "''")}'`).join(',');
-      whereClauses.push(`campaign_id IN (${campaignIdList})`);
+      factWhereClauses.push(`f.campaign_id IN (${campaignIdList})`);
+      dimWhereClauses.push(`d.campaign_id IN (${campaignIdList})`);
     }
     
-    const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    if (weeks && weeks !== 'all') {
+      const weekList = weeks.split(',').map(w => {
+        const date = parseWeekToDate(w);
+        return `DATE_TRUNC('week', f.date) = CAST('${date}' AS DATE)`;
+      }).join(' OR ');
+      factWhereClauses.push(`(${weekList})`);
+    }
     
-    // Query dimension table directly for keyword names, like the Python function
+    const factWhereClause = factWhereClauses.length > 0 ? `WHERE ${factWhereClauses.join(' AND ')}` : '';
+    const dimWhereClause = dimWhereClauses.length > 0 ? `AND ${dimWhereClauses.join(' AND ')}` : '';
+    
+    // Get keyword IDs from fact table that match filters, then get names from dimension table
     const query = `
       SELECT DISTINCT 
-        keyword_id,
-        keyword
-      FROM kna_prd_ds.sales_exec.bid_opt_master_dim_historical
-      ${whereClause}
-      ORDER BY keyword
+        f.keyword_id,
+        COALESCE(d.keyword, CAST(f.keyword_id AS STRING)) as keyword
+      FROM kna_prd_ds.sales_exec.bid_opt_master_fact_historical f
+      LEFT JOIN kna_prd_ds.sales_exec.bid_opt_master_dim_historical d 
+        ON CAST(f.keyword_id AS STRING) = CAST(d.keyword_id AS STRING)
+        AND f.account_name = d.account_name
+      ${factWhereClause}
+      ${dimWhereClause}
+      ORDER BY keyword, f.keyword_id
       LIMIT 50
     `;
     
