@@ -10,17 +10,17 @@
     <style>
         @font-face {
             font-family: 'Gilroy';
-            src: url('../fonts/Gilroy-Regular.ttf') format('truetype');
+            src: url('/fonts/Gilroy-Regular.ttf') format('truetype');
             font-weight: 400;
         }
         @font-face {
             font-family: 'Gilroy';
-            src: url('../fonts/Gilroy-Medium.ttf') format('truetype');
+            src: url('/fonts/Gilroy-Medium.ttf') format('truetype');
             font-weight: 500;
         }
         @font-face {
             font-family: 'Gilroy';
-            src: url('../fonts/Gilroy-Bold.ttf') format('truetype');
+            src: url('/fonts/Gilroy-Bold.ttf') format('truetype');
             font-weight: 700;
         }
         
@@ -186,30 +186,30 @@
     <!-- Sidebar -->
     <div class="sidebar">
         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 30px;">
-            <img src="../assets/icons/logo 1.svg" alt="Kellanova" style="height: 30px;">
+            <img src="/assets/icons/logo 1.svg" alt="Kellanova" style="height: 30px;">
             <span style="color: #d32f2f; font-weight: 700; font-size: 18px;">Kellanova</span>
         </div>
         
         <div style="font-size: 12px; color: #999; text-transform: uppercase; margin-bottom: 15px; font-weight: 500;">General</div>
         
         <div class="nav-item active">
-            <img src="../assets/icons/Home.png" alt="Dashboard">
+            <img src="/assets/icons/Home.png" alt="Dashboard">
             <span>Dashboard</span>
         </div>
         <div class="nav-item">
-            <img src="../assets/icons/Pie Chart.png" alt="Performance Data">
+            <img src="/assets/icons/Pie Chart.png" alt="Performance Data">
             <span>Performance Data</span>
         </div>
         <div class="nav-item">
-            <img src="../assets/icons/Upload Square.png" alt="Upload Keyword">
+            <img src="/assets/icons/Upload Square.png" alt="Upload Keyword">
             <span>Upload Keyword</span>
         </div>
         <div class="nav-item">
-            <img src="../assets/icons/Notebook.png" alt="Model Run Results">
+            <img src="/assets/icons/Notebook.png" alt="Model Run Results">
             <span>Model Run Results</span>
         </div>
         <div class="nav-item">
-            <img src="../assets/icons/Dialog.png" alt="Help">
+            <img src="/assets/icons/Dialog.png" alt="Help">
             <span>Help</span>
         </div>
     </div>
@@ -451,63 +451,54 @@
         
         // Update dependent filters based on current selections
         async function updateDependentFilters() {
-            const whereClauses = [];
-            
-            if (!selectedFilters.retailer.includes('all') && selectedFilters.retailer.length > 0) {
-                const retailers = selectedFilters.retailer.map(r => `'${r}'`).join(',');
-                whereClauses.push(`account_name IN (${retailers})`);
-            }
-            
-            if (!selectedFilters.campaign.includes('all') && selectedFilters.campaign.length > 0) {
-                const campaigns = selectedFilters.campaign.map(c => `'${c}'`).join(',');
-                whereClauses.push(`campaign_id IN (${campaigns})`);
-            }
-            
-            if (!selectedFilters.keywords.includes('all') && selectedFilters.keywords.length > 0) {
-                const keywords = selectedFilters.keywords.map(k => `'${k}'`).join(',');
-                whereClauses.push(`keyword_id IN (${keywords})`);
-            }
-            
-            const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
-            
             try {
+                const params = new URLSearchParams();
+                
+                if (!selectedFilters.retailer.includes('all') && selectedFilters.retailer.length > 0) {
+                    params.append('retailers', selectedFilters.retailer.join(','));
+                } else {
+                    params.append('retailers', 'all');
+                }
+                
+                if (!selectedFilters.campaign.includes('all') && selectedFilters.campaign.length > 0) {
+                    params.append('campaigns', selectedFilters.campaign.join(','));
+                } else {
+                    params.append('campaigns', 'all');
+                }
+                
+                if (!selectedFilters.keywords.includes('all') && selectedFilters.keywords.length > 0) {
+                    params.append('keywords', selectedFilters.keywords.join(','));
+                } else {
+                    params.append('keywords', 'all');
+                }
+                
+                if (!selectedFilters.week.includes('all') && selectedFilters.week.length > 0) {
+                    params.append('weeks', selectedFilters.week.join(','));
+                } else {
+                    params.append('weeks', 'all');
+                }
+                
                 // Load campaigns
-                const campaignQuery = `SELECT DISTINCT campaign_id FROM bid_opt_master_fact_historical ${whereClause} ORDER BY campaign_id`;
-                const campaignRes = await fetch('/api/query', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query: campaignQuery })
-                });
+                const campaignRes = await fetch(`/api/dashboard/filters/campaigns?${params.toString()}`);
                 const campaignData = await campaignRes.json();
                 if (campaignData.success) {
-                    filterData.campaigns = campaignData.data.rows.map(r => r.campaign_id);
+                    filterData.campaigns = campaignData.data;
                     populateFilter('campaign', filterData.campaigns);
                 }
                 
                 // Load keywords
-                const keywordQuery = `SELECT DISTINCT keyword_id FROM bid_opt_master_fact_historical ${whereClause} ORDER BY keyword_id`;
-                const keywordRes = await fetch('/api/query', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query: keywordQuery })
-                });
+                const keywordRes = await fetch(`/api/dashboard/filters/keywords?${params.toString()}`);
                 const keywordData = await keywordRes.json();
                 if (keywordData.success) {
-                    filterData.keywords = keywordData.data.rows.map(r => r.keyword_id);
+                    filterData.keywords = keywordData.data;
                     populateFilter('keywords', filterData.keywords);
                 }
                 
                 // Load weeks
-                const weekQuery = `SELECT DISTINCT DATE_TRUNC('week', date) as week FROM bid_opt_master_fact_historical ${whereClause} ORDER BY week DESC LIMIT 20`;
-                const weekRes = await fetch('/api/query', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query: weekQuery })
-                });
+                const weekRes = await fetch(`/api/dashboard/filters/weeks?${params.toString()}`);
                 const weekData = await weekRes.json();
                 if (weekData.success) {
-                    filterData.weeks = weekData.data.rows.map(r => {
-                        const weekValue = r.week;
+                    filterData.weeks = weekData.data.map(weekValue => {
                         if (typeof weekValue === 'number') {
                             return formatWeek(weekValue);
                         } else if (weekValue) {
@@ -653,59 +644,33 @@
         // Load dashboard data
         async function loadDashboardData() {
             try {
-                const whereClauses = [];
+                const params = new URLSearchParams();
                 
                 if (!selectedFilters.retailer.includes('all') && selectedFilters.retailer.length > 0) {
-                    const retailers = selectedFilters.retailer.map(r => `'${r}'`).join(',');
-                    whereClauses.push(`account_name IN (${retailers})`);
+                    params.append('retailers', selectedFilters.retailer.join(','));
+                } else {
+                    params.append('retailers', 'all');
                 }
                 
                 if (!selectedFilters.campaign.includes('all') && selectedFilters.campaign.length > 0) {
-                    const campaigns = selectedFilters.campaign.map(c => `'${c}'`).join(',');
-                    whereClauses.push(`campaign_id IN (${campaigns})`);
+                    params.append('campaigns', selectedFilters.campaign.join(','));
+                } else {
+                    params.append('campaigns', 'all');
                 }
                 
                 if (!selectedFilters.keywords.includes('all') && selectedFilters.keywords.length > 0) {
-                    const keywords = selectedFilters.keywords.map(k => `'${k}'`).join(',');
-                    whereClauses.push(`keyword_id IN (${keywords})`);
+                    params.append('keywords', selectedFilters.keywords.join(','));
+                } else {
+                    params.append('keywords', 'all');
                 }
                 
                 if (!selectedFilters.week.includes('all') && selectedFilters.week.length > 0) {
-                    const weekConditions = selectedFilters.week.map(w => {
-                        const weekDate = parseWeekToDate(w);
-                        return `DATE_TRUNC('week', date) = CAST('${weekDate}' AS DATE)`;
-                    }).join(' OR ');
-                    whereClauses.push(`(${weekConditions})`);
+                    params.append('weeks', selectedFilters.week.join(','));
+                } else {
+                    params.append('weeks', 'all');
                 }
                 
-                const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
-                
-                const query = `
-                    SELECT 
-                        DATE_TRUNC('week', date) as week,
-                        SUM(impressions) as impressions,
-                        SUM(clicks) as clicks,
-                        SUM(conversions) as conversions,
-                        SUM(cost) as spend,
-                        SUM(revenue) as sales_rev,
-                        AVG(avg_cpc) as cpc,
-                        AVG(avg_pos) as avg_rank,
-                        SUM(revenue) / NULLIF(SUM(cost), 0) as roas,
-                        SUM(clicks) / NULLIF(SUM(impressions), 0) as ctr,
-                        SUM(cost) / NULLIF(SUM(conversions), 0) as cpa,
-                        SUM(conversions) / NULLIF(SUM(clicks), 0) as conversion_rate
-                    FROM bid_opt_master_fact_historical
-                    ${whereClause}
-                    GROUP BY week
-                    ORDER BY week
-                `;
-                
-                const response = await fetch('/api/query', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query })
-                });
-                
+                const response = await fetch(`/api/dashboard/data?${params.toString()}`);
                 const data = await response.json();
                 if (data.success) {
                     dashboardData = data.data;

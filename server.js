@@ -26,6 +26,8 @@ app.get('/health', (req, res) => {
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
+app.use('/assets', express.static('assets'));
+app.use('/fonts', express.static('fonts'));
 
 // Databricks connection configuration
 // Configuration can be set via environment variables or Databricks secrets
@@ -245,6 +247,174 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
 // Serve the main page (query tool)
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Helper function to parse week string to date
+function parseWeekToDate(weekStr) {
+  const parts = weekStr.replace('Wo ', '').split(' ');
+  const monthMap = { 'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04', 'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08', 'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12' };
+  return `${parts[2]}-${monthMap[parts[0]]}-${parts[1].padStart(2, '0')}`;
+}
+
+// Dashboard API endpoints
+app.get('/api/dashboard/filters/retailers', async (req, res) => {
+  try {
+    const query = `SELECT DISTINCT account_name as retailer FROM bid_opt_master_fact_historical ORDER BY retailer`;
+    const result = await executeQuery(query);
+    res.json({ success: true, data: result.rows.map(r => r.retailer) });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/dashboard/filters/campaigns', async (req, res) => {
+  try {
+    const { retailers, keywords, weeks } = req.query;
+    const whereClauses = [];
+    
+    if (retailers && retailers !== 'all') {
+      const retailerList = retailers.split(',').map(r => `'${r}'`).join(',');
+      whereClauses.push(`account_name IN (${retailerList})`);
+    }
+    
+    if (keywords && keywords !== 'all') {
+      const keywordList = keywords.split(',').map(k => `'${k}'`).join(',');
+      whereClauses.push(`keyword_id IN (${keywordList})`);
+    }
+    
+    if (weeks && weeks !== 'all') {
+      const weekList = weeks.split(',').map(w => {
+        const date = parseWeekToDate(w);
+        return `DATE_TRUNC('week', date) = CAST('${date}' AS DATE)`;
+      }).join(' OR ');
+      whereClauses.push(`(${weekList})`);
+    }
+    
+    const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    const query = `SELECT DISTINCT campaign_id FROM bid_opt_master_fact_historical ${whereClause} ORDER BY campaign_id`;
+    const result = await executeQuery(query);
+    res.json({ success: true, data: result.rows.map(r => r.campaign_id) });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/dashboard/filters/keywords', async (req, res) => {
+  try {
+    const { retailers, campaigns, weeks } = req.query;
+    const whereClauses = [];
+    
+    if (retailers && retailers !== 'all') {
+      const retailerList = retailers.split(',').map(r => `'${r}'`).join(',');
+      whereClauses.push(`account_name IN (${retailerList})`);
+    }
+    
+    if (campaigns && campaigns !== 'all') {
+      const campaignList = campaigns.split(',').map(c => `'${c}'`).join(',');
+      whereClauses.push(`campaign_id IN (${campaignList})`);
+    }
+    
+    if (weeks && weeks !== 'all') {
+      const weekList = weeks.split(',').map(w => {
+        const date = parseWeekToDate(w);
+        return `DATE_TRUNC('week', date) = CAST('${date}' AS DATE)`;
+      }).join(' OR ');
+      whereClauses.push(`(${weekList})`);
+    }
+    
+    const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    const query = `SELECT DISTINCT keyword_id FROM bid_opt_master_fact_historical ${whereClause} ORDER BY keyword_id`;
+    const result = await executeQuery(query);
+    res.json({ success: true, data: result.rows.map(r => r.keyword_id) });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/dashboard/filters/weeks', async (req, res) => {
+  try {
+    const { retailers, campaigns, keywords } = req.query;
+    const whereClauses = [];
+    
+    if (retailers && retailers !== 'all') {
+      const retailerList = retailers.split(',').map(r => `'${r}'`).join(',');
+      whereClauses.push(`account_name IN (${retailerList})`);
+    }
+    
+    if (campaigns && campaigns !== 'all') {
+      const campaignList = campaigns.split(',').map(c => `'${c}'`).join(',');
+      whereClauses.push(`campaign_id IN (${campaignList})`);
+    }
+    
+    if (keywords && keywords !== 'all') {
+      const keywordList = keywords.split(',').map(k => `'${k}'`).join(',');
+      whereClauses.push(`keyword_id IN (${keywordList})`);
+    }
+    
+    const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    const query = `SELECT DISTINCT DATE_TRUNC('week', date) as week FROM bid_opt_master_fact_historical ${whereClause} ORDER BY week DESC LIMIT 20`;
+    const result = await executeQuery(query);
+    res.json({ success: true, data: result.rows.map(r => r.week) });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/dashboard/data', async (req, res) => {
+  try {
+    const { retailers, campaigns, keywords, weeks } = req.query;
+    const whereClauses = [];
+    
+    if (retailers && retailers !== 'all') {
+      const retailerList = retailers.split(',').map(r => `'${r}'`).join(',');
+      whereClauses.push(`account_name IN (${retailerList})`);
+    }
+    
+    if (campaigns && campaigns !== 'all') {
+      const campaignList = campaigns.split(',').map(c => `'${c}'`).join(',');
+      whereClauses.push(`campaign_id IN (${campaignList})`);
+    }
+    
+    if (keywords && keywords !== 'all') {
+      const keywordList = keywords.split(',').map(k => `'${k}'`).join(',');
+      whereClauses.push(`keyword_id IN (${keywordList})`);
+    }
+    
+    if (weeks && weeks !== 'all') {
+      const weekList = weeks.split(',').map(w => {
+        const date = parseWeekToDate(w);
+        return `DATE_TRUNC('week', date) = CAST('${date}' AS DATE)`;
+      }).join(' OR ');
+      whereClauses.push(`(${weekList})`);
+    }
+    
+    const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    
+    const query = `
+      SELECT 
+        DATE_TRUNC('week', date) as week,
+        SUM(impressions) as impressions,
+        SUM(clicks) as clicks,
+        SUM(conversions) as conversions,
+        SUM(cost) as spend,
+        SUM(revenue) as sales_rev,
+        AVG(avg_cpc) as cpc,
+        AVG(avg_pos) as avg_rank,
+        SUM(revenue) / NULLIF(SUM(cost), 0) as roas,
+        SUM(clicks) / NULLIF(SUM(impressions), 0) as ctr,
+        SUM(cost) / NULLIF(SUM(conversions), 0) as cpa,
+        SUM(conversions) / NULLIF(SUM(clicks), 0) as conversion_rate
+      FROM bid_opt_master_fact_historical
+      ${whereClause}
+      GROUP BY week
+      ORDER BY week
+    `;
+    
+    const result = await executeQuery(query);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Serve dashboard page
