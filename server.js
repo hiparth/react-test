@@ -291,9 +291,22 @@ app.get('/api/dashboard/filters/campaigns', async (req, res) => {
     }
     
     const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
-    const query = `SELECT DISTINCT campaign_id FROM kna_prd_ds.sales_exec.bid_opt_master_fact_historical ${whereClause} ORDER BY campaign_id`;
+    const query = `
+      SELECT DISTINCT f.campaign_id, d.campaign_name 
+      FROM kna_prd_ds.sales_exec.bid_opt_master_fact_historical f
+      LEFT JOIN kna_prd_ds.sales_exec.bid_opt_master_dim_historical d 
+        ON f.campaign_id = d.campaign_id AND f.keyword_id = d.keyword_id
+      ${whereClause} 
+      ORDER BY d.campaign_name, f.campaign_id
+    `;
     const result = await executeQuery(query);
-    res.json({ success: true, data: result.rows.map(r => r.campaign_id) });
+    res.json({ 
+      success: true, 
+      data: result.rows.map(r => ({
+        id: r.campaign_id,
+        name: r.campaign_name || r.campaign_id
+      }))
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -323,9 +336,22 @@ app.get('/api/dashboard/filters/keywords', async (req, res) => {
     }
     
     const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
-    const query = `SELECT DISTINCT keyword_id FROM kna_prd_ds.sales_exec.bid_opt_master_fact_historical ${whereClause} ORDER BY keyword_id`;
+    const query = `
+      SELECT DISTINCT f.keyword_id, d.keyword 
+      FROM kna_prd_ds.sales_exec.bid_opt_master_fact_historical f
+      LEFT JOIN kna_prd_ds.sales_exec.bid_opt_master_dim_historical d 
+        ON f.campaign_id = d.campaign_id AND f.keyword_id = d.keyword_id
+      ${whereClause} 
+      ORDER BY d.keyword, f.keyword_id
+    `;
     const result = await executeQuery(query);
-    res.json({ success: true, data: result.rows.map(r => r.keyword_id) });
+    res.json({ 
+      success: true, 
+      data: result.rows.map(r => ({
+        id: r.keyword_id,
+        name: r.keyword || r.keyword_id
+      }))
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
