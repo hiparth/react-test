@@ -114,7 +114,7 @@
             <div class="flex gap-3 flex-wrap">
                 <!-- Retailer Filter -->
                 <div class="filter-dropdown relative">
-                    <div class="filter-button bg-white border border-gray-200 py-2.5 px-4 rounded-md cursor-pointer flex items-center justify-between min-w-[150px] text-sm" onclick="toggleDropdown('retailer')">
+                    <div class="filter-button bg-white border border-gray-200 py-2.5 px-4 rounded-md cursor-pointer flex items-center justify-between min-w-[180px] text-sm" onclick="toggleDropdown('retailer')">
                         <span id="retailer-label">Retailer: All</span>
                         <span>▼</span>
                     </div>
@@ -129,7 +129,7 @@
                 
                 <!-- Campaign Filter -->
                 <div class="filter-dropdown relative">
-                    <div class="filter-button bg-white border border-gray-200 py-2.5 px-4 rounded-md cursor-pointer flex items-center justify-between min-w-[150px] text-sm" onclick="toggleDropdown('campaign')">
+                    <div class="filter-button bg-white border border-gray-200 py-2.5 px-4 rounded-md cursor-pointer flex items-center justify-between min-w-[180px] text-sm" onclick="toggleDropdown('campaign')">
                         <span id="campaign-label">Campaign: All Campaign</span>
                         <span>▼</span>
                     </div>
@@ -144,7 +144,7 @@
                 
                 <!-- Keywords Filter -->
                 <div class="filter-dropdown relative">
-                    <div class="filter-button bg-white border border-gray-200 py-2.5 px-4 rounded-md cursor-pointer flex items-center justify-between min-w-[150px] text-sm" onclick="toggleDropdown('keywords')">
+                    <div class="filter-button bg-white border border-gray-200 py-2.5 px-4 rounded-md cursor-pointer flex items-center justify-between min-w-[180px] text-sm" onclick="toggleDropdown('keywords')">
                         <span id="keywords-label">Keywords: All Keywords</span>
                         <span>▼</span>
                     </div>
@@ -159,7 +159,7 @@
                 
                 <!-- Week Filter -->
                 <div class="filter-dropdown relative">
-                    <div class="filter-button bg-white border border-gray-200 py-2.5 px-4 rounded-md cursor-pointer flex items-center justify-between min-w-[150px] text-sm" onclick="toggleDropdown('week')">
+                    <div class="filter-button bg-white border border-gray-200 py-2.5 px-4 rounded-md cursor-pointer flex items-center justify-between min-w-[180px] text-sm" onclick="toggleDropdown('week')">
                         <span id="week-label">Select Week: All</span>
                         <span>▼</span>
                     </div>
@@ -224,33 +224,33 @@
             <div class="flex flex-col gap-4">
                 <!-- Top Card -->
                 <div class="bg-white rounded-lg p-5 border border-gray-200">
-                    <div class="grid grid-cols-2 gap-4 lg:gap-5">
+                    <div class="grid grid-cols-2 gap-5 lg:gap-6">
                         <div>
                             <div class="text-xs text-gray-600 mb-2">Impressions</div>
                             <div class="text-2xl font-bold text-gray-800" id="metric-impressions">-</div>
-                        </div>
-                        <div>
-                            <div class="text-xs text-gray-600 mb-2">*CPA</div>
-                            <div class="text-2xl font-bold text-gray-800" id="metric-cpa">-</div>
                         </div>
                         <div>
                             <div class="text-xs text-gray-600 mb-2">ROAS</div>
                             <div class="text-2xl font-bold text-gray-800" id="metric-roas">-</div>
                         </div>
                         <div>
-                            <div class="text-xs text-gray-600 mb-2">CTR</div>
-                            <div class="text-2xl font-bold text-gray-800" id="metric-ctr">-</div>
-                        </div>
-                        <div class="col-span-2">
                             <div class="text-xs text-gray-600 mb-2">Conversion Rate</div>
                             <div class="text-2xl font-bold text-gray-800" id="metric-conversion-rate">-</div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-600 mb-2">*CPA</div>
+                            <div class="text-2xl font-bold text-gray-800" id="metric-cpa">-</div>
+                        </div>
+                        <div class="col-span-2">
+                            <div class="text-xs text-gray-600 mb-2">CTR</div>
+                            <div class="text-2xl font-bold text-gray-800" id="metric-ctr">-</div>
                         </div>
                     </div>
                 </div>
                 
                 <!-- Bottom Card -->
                 <div class="bg-white rounded-lg p-5 border border-gray-200">
-                    <div class="grid grid-cols-2 gap-4 lg:gap-5">
+                    <div class="grid grid-cols-2 gap-5 lg:gap-6">
                         <div>
                             <div class="text-xs text-gray-600 mb-2">Clicks</div>
                             <div class="text-2xl font-bold text-gray-800" id="metric-clicks">-</div>
@@ -408,11 +408,12 @@
             
             options.forEach(option => {
                 const div = document.createElement('div');
-                div.className = 'filter-option';
+                div.className = 'filter-option py-2.5 px-4 cursor-pointer flex items-center gap-2';
                 div.onclick = (e) => e.stopPropagation();
                 
                 const checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
+                checkbox.className = 'cursor-pointer w-4 h-4';
                 
                 // Handle object format {id, name} or string format
                 const optionId = typeof option === 'object' ? option.id : option;
@@ -420,7 +421,8 @@
                 
                 checkbox.id = `${filterType}-${optionId}`;
                 checkbox.value = optionId;
-                checkbox.checked = selectedFilters[filterType].includes(optionId) || selectedFilters[filterType].includes('all');
+                // Only check if the specific ID is selected (not when "all" is selected)
+                checkbox.checked = selectedFilters[filterType].includes(optionId) && !selectedFilters[filterType].includes('all');
                 checkbox.onchange = () => handleFilterChange(filterType, optionId, checkbox.checked);
                 
                 const label = document.createElement('label');
@@ -440,16 +442,28 @@
         function handleFilterChange(filterType, value, checked) {
             if (value === 'all') {
                 if (checked) {
+                    // When "all" is checked, clear all other selections
                     selectedFilters[filterType] = ['all'];
+                    // Uncheck all individual items
+                    const checkboxes = document.querySelectorAll(`#${filterType}-options input[type="checkbox"]:not(#${filterType}-all)`);
+                    checkboxes.forEach(cb => cb.checked = false);
                 }
             } else {
+                // Remove "all" when any individual item is selected
+                selectedFilters[filterType] = selectedFilters[filterType].filter(v => v !== 'all');
+                const allCheckbox = document.getElementById(`${filterType}-all`);
+                if (allCheckbox) allCheckbox.checked = false;
+                
                 if (checked) {
-                    selectedFilters[filterType] = selectedFilters[filterType].filter(v => v !== 'all');
-                    selectedFilters[filterType].push(value);
+                    if (!selectedFilters[filterType].includes(value)) {
+                        selectedFilters[filterType].push(value);
+                    }
                 } else {
                     selectedFilters[filterType] = selectedFilters[filterType].filter(v => v !== value);
+                    // If no items selected, select "all"
                     if (selectedFilters[filterType].length === 0) {
                         selectedFilters[filterType] = ['all'];
+                        if (allCheckbox) allCheckbox.checked = true;
                     }
                 }
             }
@@ -464,21 +478,14 @@
             const allCheckbox = document.getElementById(`${filterType}-all`);
             const checkboxes = document.querySelectorAll(`#${filterType}-options input[type="checkbox"]:not(#${filterType}-all)`);
             
-            checkboxes.forEach(cb => {
-                cb.checked = allCheckbox.checked;
-                if (allCheckbox.checked) {
-                    if (!selectedFilters[filterType].includes(cb.value)) {
-                        selectedFilters[filterType].push(cb.value);
-                    }
-                } else {
-                    selectedFilters[filterType] = selectedFilters[filterType].filter(v => v !== cb.value);
-                }
-            });
-            
             if (allCheckbox.checked) {
-                selectedFilters[filterType] = selectedFilters[filterType].filter(v => v !== 'all');
-            } else {
+                // When "all" is checked, select all items but keep "all" in the array
                 selectedFilters[filterType] = ['all'];
+                checkboxes.forEach(cb => cb.checked = false);
+            } else {
+                // When "all" is unchecked, clear everything
+                selectedFilters[filterType] = ['all'];
+                checkboxes.forEach(cb => cb.checked = false);
             }
             
             updateFilterLabel(filterType);
