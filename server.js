@@ -259,10 +259,19 @@ function parseWeekToDate(weekStr) {
 // Dashboard API endpoints
 app.get('/api/dashboard/filters/retailers', async (req, res) => {
   try {
-    const query = `SELECT DISTINCT account_name as retailer FROM kna_prd_ds.sales_exec.bid_opt_master_fact_historical ORDER BY retailer`;
+    // Query fact table with date filter like Python function
+    const query = `
+      SELECT DISTINCT account_name as retailer
+      FROM kna_prd_ds.sales_exec.bid_opt_master_fact_historical
+      WHERE account_name IS NOT NULL
+        AND TO_DATE(date) >= DATE_SUB(CURRENT_DATE(), 90)
+      ORDER BY retailer
+      LIMIT 20
+    `;
     const result = await executeQuery(query);
     res.json({ success: true, data: result.rows.map(r => r.retailer) });
   } catch (error) {
+    console.error('Error fetching retailers:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -270,60 +279,46 @@ app.get('/api/dashboard/filters/retailers', async (req, res) => {
 app.get('/api/dashboard/filters/campaigns', async (req, res) => {
   try {
     const { retailers, keywords, weeks } = req.query;
-    const whereClauses = [];
+    const whereClauses = ['campaign_name IS NOT NULL'];
     
     if (retailers && retailers !== 'all') {
-      const retailerList = retailers.split(',').map(r => `'${r}'`).join(',');
+      const retailerList = retailers.split(',').map(r => `'${r.replace(/'/g, "''")}'`).join(',');
       whereClauses.push(`account_name IN (${retailerList})`);
     }
     
     if (keywords && keywords !== 'all') {
-      const keywordList = keywords.split(',').map(k => `'${k}'`).join(',');
-      whereClauses.push(`keyword_id IN (${keywordList})`);
-    }
-    
-    if (weeks && weeks !== 'all') {
-      const weekList = weeks.split(',').map(w => {
-        const date = parseWeekToDate(w);
-        return `DATE_TRUNC('week', date) = CAST('${date}' AS DATE)`;
-      }).join(' OR ');
-      whereClauses.push(`(${weekList})`);
+      // Frontend sends keyword IDs, but dimension table filters by keyword names
+      // So we need to filter by keyword_id in dimension table
+      const keywordIdList = keywords.split(',').map(k => `'${k.replace(/'/g, "''")}'`).join(',');
+      whereClauses.push(`keyword_id IN (${keywordIdList})`);
     }
     
     const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    
+    // Query dimension table directly for campaign names, like the Python function
     const query = `
       SELECT DISTINCT 
-        f.campaign_id, 
-        COALESCE(
-          MAX(d.campaign_name), 
-          CAST(f.campaign_id AS STRING)
-        ) as campaign_name
-      FROM kna_prd_ds.sales_exec.bid_opt_master_fact_historical f
-      LEFT JOIN kna_prd_ds.sales_exec.bid_opt_master_dim_historical d 
-        ON CAST(f.campaign_id AS STRING) = CAST(d.campaign_id AS STRING)
-        AND f.account_name = d.account_name
-      ${whereClause} 
-      GROUP BY f.campaign_id
-      ORDER BY campaign_name, f.campaign_id
+        campaign_id,
+        campaign_name
+      FROM kna_prd_ds.sales_exec.bid_opt_master_dim_historical
+      ${whereClause}
+      ORDER BY campaign_name
+      LIMIT 50
     `;
+    
     const result = await executeQuery(query);
     console.log('Campaigns query result sample:', JSON.stringify(result.rows.slice(0, 3), null, 2));
     console.log('Total campaigns found:', result.rows.length);
+    
     res.json({ 
       success: true, 
-      data: result.rows.map(r => {
-        // If campaign_name is the same as campaign_id, it means the JOIN didn't find a match
-        const campaignIdStr = String(r.campaign_id);
-        const campaignName = (r.campaign_name && r.campaign_name !== campaignIdStr) 
-          ? String(r.campaign_name) 
-          : campaignIdStr;
-        return {
-          id: campaignIdStr,
-          name: campaignName
-        };
-      })
+      data: result.rows.map(r => ({
+        id: String(r.campaign_id),
+        name: String(r.campaign_name || r.campaign_id)
+      }))
     });
   } catch (error) {
+    console.error('Error fetching campaigns:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -331,60 +326,46 @@ app.get('/api/dashboard/filters/campaigns', async (req, res) => {
 app.get('/api/dashboard/filters/keywords', async (req, res) => {
   try {
     const { retailers, campaigns, weeks } = req.query;
-    const whereClauses = [];
+    const whereClauses = ['keyword IS NOT NULL'];
     
     if (retailers && retailers !== 'all') {
-      const retailerList = retailers.split(',').map(r => `'${r}'`).join(',');
+      const retailerList = retailers.split(',').map(r => `'${r.replace(/'/g, "''")}'`).join(',');
       whereClauses.push(`account_name IN (${retailerList})`);
     }
     
     if (campaigns && campaigns !== 'all') {
-      const campaignList = campaigns.split(',').map(c => `'${c}'`).join(',');
-      whereClauses.push(`campaign_id IN (${campaignList})`);
-    }
-    
-    if (weeks && weeks !== 'all') {
-      const weekList = weeks.split(',').map(w => {
-        const date = parseWeekToDate(w);
-        return `DATE_TRUNC('week', date) = CAST('${date}' AS DATE)`;
-      }).join(' OR ');
-      whereClauses.push(`(${weekList})`);
+      // Frontend sends campaign IDs, but dimension table filters by campaign names
+      // So we need to filter by campaign_id in dimension table
+      const campaignIdList = campaigns.split(',').map(c => `'${c.replace(/'/g, "''")}'`).join(',');
+      whereClauses.push(`campaign_id IN (${campaignIdList})`);
     }
     
     const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    
+    // Query dimension table directly for keyword names, like the Python function
     const query = `
       SELECT DISTINCT 
-        f.keyword_id, 
-        COALESCE(
-          MAX(d.keyword), 
-          CAST(f.keyword_id AS STRING)
-        ) as keyword
-      FROM kna_prd_ds.sales_exec.bid_opt_master_fact_historical f
-      LEFT JOIN kna_prd_ds.sales_exec.bid_opt_master_dim_historical d 
-        ON CAST(f.keyword_id AS STRING) = CAST(d.keyword_id AS STRING)
-        AND f.account_name = d.account_name
-      ${whereClause} 
-      GROUP BY f.keyword_id
-      ORDER BY keyword, f.keyword_id
+        keyword_id,
+        keyword
+      FROM kna_prd_ds.sales_exec.bid_opt_master_dim_historical
+      ${whereClause}
+      ORDER BY keyword
+      LIMIT 50
     `;
+    
     const result = await executeQuery(query);
     console.log('Keywords query result sample:', JSON.stringify(result.rows.slice(0, 3), null, 2));
     console.log('Total keywords found:', result.rows.length);
+    
     res.json({ 
       success: true, 
-      data: result.rows.map(r => {
-        // If keyword is the same as keyword_id, it means the JOIN didn't find a match
-        const keywordIdStr = String(r.keyword_id);
-        const keywordName = (r.keyword && r.keyword !== keywordIdStr) 
-          ? String(r.keyword) 
-          : keywordIdStr;
-        return {
-          id: keywordIdStr,
-          name: keywordName
-        };
-      })
+      data: result.rows.map(r => ({
+        id: String(r.keyword_id),
+        name: String(r.keyword || r.keyword_id)
+      }))
     });
   } catch (error) {
+    console.error('Error fetching keywords:', error);
     res.status(500).json({ error: error.message });
   }
 });
