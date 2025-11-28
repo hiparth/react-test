@@ -303,33 +303,47 @@ app.get('/api/dashboard/filters/campaigns', async (req, res) => {
     }
     
     const factWhereClause = factWhereClauses.length > 0 ? `WHERE ${factWhereClauses.join(' AND ')}` : '';
-    const dimWhereClause = dimWhereClauses.length > 0 ? `AND ${dimWhereClauses.join(' AND ')}` : '';
+    const dimWhereClause = dimWhereClauses.length > 0 ? `WHERE ${dimWhereClauses.join(' AND ')}` : '';
     
-    // Get campaign IDs from fact table that match filters, then get names from dimension table
+    // Get campaign IDs from fact table, then get names from dimension table
+    // First get distinct campaign_ids from fact table, then join with dimension to get names
     const query = `
+      WITH fact_campaigns AS (
+        SELECT DISTINCT f.campaign_id, f.account_name
+        FROM kna_prd_ds.sales_exec.bid_opt_master_fact_historical f
+        ${factWhereClause}
+      )
       SELECT DISTINCT 
-        f.campaign_id,
-        COALESCE(d.campaign_name, CAST(f.campaign_id AS STRING)) as campaign_name
-      FROM kna_prd_ds.sales_exec.bid_opt_master_fact_historical f
+        fc.campaign_id,
+        COALESCE(d.campaign_name, CAST(fc.campaign_id AS STRING)) as campaign_name
+      FROM fact_campaigns fc
       LEFT JOIN kna_prd_ds.sales_exec.bid_opt_master_dim_historical d 
-        ON CAST(f.campaign_id AS STRING) = CAST(d.campaign_id AS STRING)
-        AND f.account_name = d.account_name
-      ${factWhereClause}
-      ${dimWhereClause}
-      ORDER BY campaign_name, f.campaign_id
+        ON CAST(fc.campaign_id AS STRING) = CAST(d.campaign_id AS STRING)
+        AND fc.account_name = d.account_name
+        ${dimWhereClause ? dimWhereClause.replace('WHERE', 'AND') : ''}
+      ORDER BY campaign_name, fc.campaign_id
       LIMIT 50
     `;
     
     const result = await executeQuery(query);
-    console.log('Campaigns query result sample:', JSON.stringify(result.rows.slice(0, 3), null, 2));
+    console.log('Campaigns query result sample:', JSON.stringify(result.rows.slice(0, 5), null, 2));
     console.log('Total campaigns found:', result.rows.length);
+    console.log('Sample campaign_id types:', result.rows.slice(0, 3).map(r => ({ id: r.campaign_id, idType: typeof r.campaign_id, name: r.campaign_name })));
     
     res.json({ 
       success: true, 
-      data: result.rows.map(r => ({
-        id: String(r.campaign_id),
-        name: String(r.campaign_name || r.campaign_id)
-      }))
+      data: result.rows.map(r => {
+        const campaignId = String(r.campaign_id);
+        const campaignName = r.campaign_name ? String(r.campaign_name) : campaignId;
+        // If name is same as ID, the JOIN didn't work
+        if (campaignName === campaignId) {
+          console.log(`Warning: Campaign ${campaignId} has no name match in dimension table`);
+        }
+        return {
+          id: campaignId,
+          name: campaignName
+        };
+      })
     });
   } catch (error) {
     console.error('Error fetching campaigns:', error);
@@ -364,33 +378,46 @@ app.get('/api/dashboard/filters/keywords', async (req, res) => {
     }
     
     const factWhereClause = factWhereClauses.length > 0 ? `WHERE ${factWhereClauses.join(' AND ')}` : '';
-    const dimWhereClause = dimWhereClauses.length > 0 ? `AND ${dimWhereClauses.join(' AND ')}` : '';
+    const dimWhereClause = dimWhereClauses.length > 0 ? `WHERE ${dimWhereClauses.join(' AND ')}` : '';
     
-    // Get keyword IDs from fact table that match filters, then get names from dimension table
+    // Get keyword IDs from fact table, then get names from dimension table
     const query = `
+      WITH fact_keywords AS (
+        SELECT DISTINCT f.keyword_id, f.account_name
+        FROM kna_prd_ds.sales_exec.bid_opt_master_fact_historical f
+        ${factWhereClause}
+      )
       SELECT DISTINCT 
-        f.keyword_id,
-        COALESCE(d.keyword, CAST(f.keyword_id AS STRING)) as keyword
-      FROM kna_prd_ds.sales_exec.bid_opt_master_fact_historical f
+        fk.keyword_id,
+        COALESCE(d.keyword, CAST(fk.keyword_id AS STRING)) as keyword
+      FROM fact_keywords fk
       LEFT JOIN kna_prd_ds.sales_exec.bid_opt_master_dim_historical d 
-        ON CAST(f.keyword_id AS STRING) = CAST(d.keyword_id AS STRING)
-        AND f.account_name = d.account_name
-      ${factWhereClause}
-      ${dimWhereClause}
-      ORDER BY keyword, f.keyword_id
+        ON CAST(fk.keyword_id AS STRING) = CAST(d.keyword_id AS STRING)
+        AND fk.account_name = d.account_name
+        ${dimWhereClause ? dimWhereClause.replace('WHERE', 'AND') : ''}
+      ORDER BY keyword, fk.keyword_id
       LIMIT 50
     `;
     
     const result = await executeQuery(query);
-    console.log('Keywords query result sample:', JSON.stringify(result.rows.slice(0, 3), null, 2));
+    console.log('Keywords query result sample:', JSON.stringify(result.rows.slice(0, 5), null, 2));
     console.log('Total keywords found:', result.rows.length);
+    console.log('Sample keyword_id types:', result.rows.slice(0, 3).map(r => ({ id: r.keyword_id, idType: typeof r.keyword_id, name: r.keyword })));
     
     res.json({ 
       success: true, 
-      data: result.rows.map(r => ({
-        id: String(r.keyword_id),
-        name: String(r.keyword || r.keyword_id)
-      }))
+      data: result.rows.map(r => {
+        const keywordId = String(r.keyword_id);
+        const keywordName = r.keyword ? String(r.keyword) : keywordId;
+        // If name is same as ID, the JOIN didn't work
+        if (keywordName === keywordId) {
+          console.log(`Warning: Keyword ${keywordId} has no name match in dimension table`);
+        }
+        return {
+          id: keywordId,
+          name: keywordName
+        };
+      })
     });
   } catch (error) {
     console.error('Error fetching keywords:', error);
