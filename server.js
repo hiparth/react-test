@@ -3,6 +3,8 @@ const cors = require('cors');
 const path = require('path');
 const multer = require('multer');
 const axios = require('axios');
+const csv = require('csv-parser');
+const { Readable } = require('stream');
 require('dotenv').config();
 
 const app = express();
@@ -153,12 +155,51 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     }
 
     const fileName = req.file.originalname;
-    const fileBuffer = req.file.buffer; // Get buffer directly from memory
+    const fileBuffer = req.file.buffer;
+    
+    // Validate file extension - must be CSV
+    const fileExtension = path.extname(fileName).toLowerCase();
+    if (fileExtension !== '.csv') {
+      return res.status(400).json({ error: 'File must be a CSV file (.csv extension required)' });
+    }
+
+    // Validate CSV has 'retailer' column
+    try {
+      const hasRetailerColumn = await new Promise((resolve, reject) => {
+        const stream = Readable.from(fileBuffer);
+        let headers = null;
+        let firstRowRead = false;
+        
+        stream
+          .pipe(csv())
+          .on('data', (row) => {
+            if (!firstRowRead) {
+              // Get headers from first row keys
+              headers = Object.keys(row);
+              firstRowRead = true;
+              stream.destroy(); // Stop reading after getting headers
+              resolve(headers.includes('retailer'));
+            }
+          })
+          .on('error', (error) => {
+            reject(error);
+          })
+          .on('end', () => {
+            if (!firstRowRead) {
+              resolve(false);
+            }
+          });
+      });
+
+      if (!hasRetailerColumn) {
+        return res.status(400).json({ error: 'CSV file must contain a column named "retailer"' });
+      }
+    } catch (csvError) {
+      return res.status(400).json({ error: 'Invalid CSV file format: ' + csvError.message });
+    }
+
     const volumePath = '/Volumes/kna_prd_ds/sales_exec/bid_opt';
     const targetPath = `${volumePath}/${fileName}`;
-
-    // Convert buffer to base64
-    const fileBase64 = fileBuffer.toString('base64');
 
     // Upload to Databricks volume using Files API
     // API contract: /api/2.0/fs/files{file_path}
@@ -167,9 +208,6 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     const uploadUrl = `${databricksUrl}/api/2.0/fs/files${targetPath}`;
     
     try {
-      // Convert base64 back to buffer for binary upload
-      const fileBuffer = Buffer.from(fileBase64, 'base64');
-      
       console.log('uploadUrl',uploadUrl);
       // Files API expects binary content in request body
       const response = await axios.put(uploadUrl, fileBuffer, {
